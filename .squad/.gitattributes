@@ -1,0 +1,6 @@
+# Merge strategy for append-only files
+.squad/decisions.md merge=union
+.squad/agents/*/history.md merge=union
+.squad/log/*.md merge=union
+.squad/orchestration-log/*.md merge=union
+.squad/casting/history.json merge=union
