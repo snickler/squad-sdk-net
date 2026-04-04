@@ -25,6 +25,7 @@ Squad.SDK.NET is a .NET port of [@bradygaster/squad-sdk](https://github.com/brad
 - **Full AOT / Native AOT compatibility** — zero reflection, zero dynamic code generation
 - **Source-generated JSON serialization** via three dedicated `JsonSerializerContext` implementations
 - **Microsoft.Extensions.DependencyInjection integration** — one-call service registration
+- **Comprehensive XML documentation** on all public types, methods, and properties for IntelliSense support
 
 ## Installation
 
@@ -390,6 +391,10 @@ dotnet test
 - **Microsoft.Extensions.Logging.Abstractions** v10.0.5 or later
 
 All dependencies are AOT-safe and trimming-compatible.
+
+## Documentation
+
+For detailed usage examples covering all SDK features, see the **[Usage Examples Guide](../../docs/examples.md)**.
 
 ## License
 
