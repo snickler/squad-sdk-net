@@ -6,6 +6,14 @@ public sealed class MultiSquadManager
 {
     private readonly ILogger<MultiSquadManager> _logger;
 
+    // Explicit cross-platform blocklist — Linux allows chars that Windows forbids,
+    // but squad names must be portable across all platforms.
+    private static readonly char[] s_portableInvalidChars =
+        Path.GetInvalidFileNameChars()
+            .Union(['<', '>', ':', '"', '/', '\\', '|', '?', '*'])
+            .Distinct()
+            .ToArray();
+
     public MultiSquadManager(ILogger<MultiSquadManager> logger)
     {
         _logger = logger;
@@ -35,8 +43,7 @@ public sealed class MultiSquadManager
             || name.Contains('\\') || name.Contains('/') || name.Contains(".."))
             throw new ArgumentException("Squad name must not contain path separators or '..'.", nameof(name));
 
-        var invalidChars = Path.GetInvalidFileNameChars();
-        if (name.Any(c => invalidChars.Contains(c)))
+        if (name.Any(c => s_portableInvalidChars.Contains(c)))
             throw new ArgumentException("Squad name contains invalid filename characters.", nameof(name));
 
         var personalDir = SquadResolver.EnsurePersonalSquadDir();
@@ -65,8 +72,7 @@ public sealed class MultiSquadManager
             || name.Contains('\\') || name.Contains('/') || name.Contains(".."))
             throw new ArgumentException("Squad name must not contain path separators or '..'.", nameof(name));
 
-        var invalidChars = Path.GetInvalidFileNameChars();
-        if (name.Any(c => invalidChars.Contains(c)))
+        if (name.Any(c => s_portableInvalidChars.Contains(c)))
             throw new ArgumentException("Squad name contains invalid filename characters.", nameof(name));
 
         var squadDir = Path.Combine(personalDir, name);
