@@ -350,7 +350,7 @@ Squad.SDK.NET is fully compatible with .NET Native AOT publishing:
 
 ## Testing
 
-The SDK includes a comprehensive test suite with 20+ test classes and 433+ test cases (and growing):
+The SDK includes a comprehensive test suite with 20+ test classes and 449+ test cases (and growing):
 
 ```
 Squad.SDK.NET.Tests/
@@ -359,6 +359,7 @@ Squad.SDK.NET.Tests/
 ├── BuiltInToolsTests.cs              — Built-in tool execution
 ├── CharterCompilerTests.cs           — Charter parsing
 ├── ConfigAndBuilderParityTests.cs    — Config/builder equivalence
+├── ConfigLoaderTests.cs              — AOT config loading and serialization
 ├── ConfigValidationTests.cs          — Configuration validation
 ├── CoordinatorTests.cs               — Routing and dispatch logic
 ├── CostTrackerTests.cs               — Usage aggregation
