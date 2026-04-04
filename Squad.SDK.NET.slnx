@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Squad.SDK.NET/Squad.SDK.NET.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Squad.SDK.NET.Tests/Squad.SDK.NET.Tests.csproj" />
+  </Folder>
+</Solution>
