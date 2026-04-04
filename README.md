@@ -46,7 +46,7 @@ squad-sdk-net/
 │       ├── Tools/              # Built-in tool definitions
 │       └── Utils/              # String utilities
 ├── tests/
-│   └── Squad.SDK.NET.Tests/    # Unit tests (433+ tests)
+│   └── Squad.SDK.NET.Tests/    # Unit tests (457+ tests)
 ├── Squad.SDK.NET.slnx          # Solution file
 ├── Directory.Build.props       # Shared build properties
 ├── Directory.Packages.props    # Central package management

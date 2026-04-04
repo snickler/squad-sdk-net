@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Squad.SDK.NET.Abstractions;
 
@@ -25,15 +26,15 @@ public sealed class RemoteBridge
         {
             RemoteCommands.Ping => new RCServerEvent
             {
-                Event = "pong",
-                Data = new { status = "ok" }
+                Event = RemoteEvents.Pong,
+                Data = JsonDocument.Parse("""{"status":"ok"}""").RootElement.Clone()
             },
             RemoteCommands.ListAgents => await HandleListAgentsAsync(cancellationToken),
             RemoteCommands.GetStatus => await HandleGetStatusAsync(cancellationToken),
             _ => new RCServerEvent
             {
                 Event = RemoteEvents.Error,
-                Data = new { message = $"Unknown command: {command.Command}" }
+                Data = JsonDocument.Parse($$$"""{"message":"Unknown command: {{{command.Command}}}"}""").RootElement.Clone()
             }
         };
     }
@@ -62,8 +63,8 @@ public sealed class RemoteBridge
 
         return new RCServerEvent
         {
-            Event = "agents-listed",
-            Data = agents
+            Event = RemoteEvents.AgentsListed,
+            Data = JsonSerializer.SerializeToElement(agents, RemoteJsonContext.Default.ListRCAgent)
         };
     }
 
@@ -72,8 +73,8 @@ public sealed class RemoteBridge
         var sessions = await _client.ListSessionsAsync(cancellationToken);
         return new RCServerEvent
         {
-            Event = "status",
-            Data = new { isRunning = _isRunning, activeSessions = sessions.Count }
+            Event = RemoteEvents.Status,
+            Data = JsonDocument.Parse($$$"""{"isRunning":{{{(_isRunning ? "true" : "false")}}},"activeSessions":{{{sessions.Count}}}}""").RootElement.Clone()
         };
     }
 }

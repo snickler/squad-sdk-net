@@ -722,6 +722,9 @@ public sealed class RemoteProtocolTests
         Assert.Equal("agent-spawned", RemoteEvents.AgentSpawned);
         Assert.Equal("agent-destroyed", RemoteEvents.AgentDestroyed);
         Assert.Equal("error", RemoteEvents.Error);
+        Assert.Equal("pong", RemoteEvents.Pong);
+        Assert.Equal("agents-listed", RemoteEvents.AgentsListed);
+        Assert.Equal("status", RemoteEvents.Status);
     }
 }
 
@@ -763,7 +766,7 @@ public sealed class RemoteBridgeTests
 
         var result = await _bridge.HandleCommandAsync(cmd);
 
-        Assert.Equal("pong", result.Event);
+        Assert.Equal(RemoteEvents.Pong, result.Event);
     }
 
     [Fact]
@@ -790,7 +793,7 @@ public sealed class RemoteBridgeTests
 
         var result = await _bridge.HandleCommandAsync(cmd);
 
-        Assert.Equal("agents-listed", result.Event);
+        Assert.Equal(RemoteEvents.AgentsListed, result.Event);
         Assert.NotNull(result.Data);
     }
 
@@ -804,7 +807,7 @@ public sealed class RemoteBridgeTests
 
         var result = await _bridge.HandleCommandAsync(cmd);
 
-        Assert.Equal("status", result.Event);
+        Assert.Equal(RemoteEvents.Status, result.Event);
     }
 }
 

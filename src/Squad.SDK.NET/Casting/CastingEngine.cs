@@ -40,8 +40,8 @@ public sealed class CastingEngine
                     }
                     break;
                 case OverflowStrategy.Queue:
-                    _logger.LogWarning("Casting capacity reached, queuing agent '{Agent}'", agentName);
-                    break;
+                    _logger.LogWarning("Casting capacity reached, but queueing is not implemented for agent '{Agent}'", agentName);
+                    throw new NotSupportedException("OverflowStrategy.Queue is configured, but queueing is not implemented.");
             }
         }
 

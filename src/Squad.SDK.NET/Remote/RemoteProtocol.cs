@@ -1,4 +1,9 @@
+using System.Text.Json.Serialization;
+
 namespace Squad.SDK.NET.Remote;
+
+[JsonSerializable(typeof(List<RCAgent>))]
+internal sealed partial class RemoteJsonContext : JsonSerializerContext;
 
 public sealed record RCMessage
 {
@@ -24,7 +29,7 @@ public sealed record RCServerEvent
     public required string Event { get; init; }
     public string? SessionId { get; init; }
     public string? AgentName { get; init; }
-    public object? Data { get; init; }
+    public System.Text.Json.JsonElement? Data { get; init; }
     public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
 }
 
@@ -52,4 +57,7 @@ public static class RemoteEvents
     public const string AgentSpawned = "agent-spawned";
     public const string AgentDestroyed = "agent-destroyed";
     public const string Error = "error";
+    public const string Pong = "pong";
+    public const string AgentsListed = "agents-listed";
+    public const string Status = "status";
 }

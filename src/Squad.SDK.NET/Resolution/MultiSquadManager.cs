@@ -35,6 +35,10 @@ public sealed class MultiSquadManager
             || name.Contains('\\') || name.Contains('/') || name.Contains(".."))
             throw new ArgumentException("Squad name must not contain path separators or '..'.", nameof(name));
 
+        var invalidChars = Path.GetInvalidFileNameChars();
+        if (name.Any(c => invalidChars.Contains(c)))
+            throw new ArgumentException("Squad name contains invalid filename characters.", nameof(name));
+
         var personalDir = SquadResolver.EnsurePersonalSquadDir();
         var squadDir = Path.Combine(personalDir, name);
 
@@ -60,6 +64,10 @@ public sealed class MultiSquadManager
         if (name.Contains(Path.DirectorySeparatorChar) || name.Contains(Path.AltDirectorySeparatorChar)
             || name.Contains('\\') || name.Contains('/') || name.Contains(".."))
             throw new ArgumentException("Squad name must not contain path separators or '..'.", nameof(name));
+
+        var invalidChars = Path.GetInvalidFileNameChars();
+        if (name.Any(c => invalidChars.Contains(c)))
+            throw new ArgumentException("Squad name contains invalid filename characters.", nameof(name));
 
         var squadDir = Path.Combine(personalDir, name);
 
