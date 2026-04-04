@@ -1,10 +1,30 @@
 # Squad.SDK.NET
 
+[![CI](https://github.com/snickler/squad-sdk-net/actions/workflows/ci.yml/badge.svg)](https://github.com/snickler/squad-sdk-net/actions/workflows/ci.yml)
+![.NET 10](https://img.shields.io/badge/.NET-10-512BD4)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Multi-agent orchestration SDK for .NET 10, wrapping GitHub.Copilot.SDK with fluent configuration and advanced routing.
 
 ## Overview
 
 Squad.SDK.NET is a .NET port of [@bradygaster/squad-sdk](https://github.com/bradygaster/squad-sdk), designed to orchestrate teams of AI agents using the GitHub Copilot SDK. It provides a fluent builder API for defining agent charters, routing rules, and governance policies — with built-in support for session pooling, event pub/sub, cost tracking, and tool access control.
+
+## Features
+
+- **Fluent builder API** for squad configuration with chainable methods
+- **Coordinator with intelligent routing** — work-type matching, priority-based dispatch, and fan-out
+- **Event bus (pub/sub)** via `System.Threading.Channels` for decoupled event-driven architecture
+- **Pre/post tool-use hook pipeline** for governance, policy enforcement, and auditing
+- **Agent session management** with pooling and per-agent lifecycle tracking
+- **Cost tracking and usage aggregation** across sessions and models
+- **Charter compiler** — parses markdown + YAML frontmatter into `AgentCharter` objects
+- **Skill registry and loader** for extensible agent capabilities
+- **Platform detection** — OS, terminal, and IDE awareness
+- **Import/export** for sharing squad configurations as portable JSON
+- **Full AOT / Native AOT compatibility** — zero reflection, zero dynamic code generation
+- **Source-generated JSON serialization** via three dedicated `JsonSerializerContext` implementations
+- **Microsoft.Extensions.DependencyInjection integration** — one-call service registration
 
 ## Installation
 
@@ -279,11 +299,11 @@ Registered services:
 ## Architecture
 
 ```
-┌──────────────────────────────────────┐
-│      SquadClient (ISquadClient)      │
-│  • Session lifecycle (create/resume) │
-│  • Wraps GitHub.Copilot.SDK          │
-└─────────────────┬────────────────────┘
+┌──────────────────────────────────────────┐
+│        SquadClient (ISquadClient)        │
+│  • Session lifecycle (create/resume)     │
+│  • Wraps GitHub.Copilot.SDK              │
+└─────────────────┬────────────────────────┘
                   │
           ┌───────▼────────┐
           │  SquadSession   │
@@ -303,41 +323,72 @@ Registered services:
         │  • Session pooling     │
         │  • Per-agent lifecycle │
         └────────────────────────┘
+
+┌────────────────┐ ┌────────────────┐ ┌─────────────────┐
+│ CharterCompiler│ │  CostTracker   │ │  SkillRegistry  │
+│ (MD+YAML→obj)  │ │ (usage/costs)  │ │  (tool loading) │
+└────────────────┘ └────────────────┘ └─────────────────┘
+
+┌────────────────┐ ┌────────────────┐ ┌─────────────────┐
+│  SquadBuilder  │ │ Import/Export  │ │ PlatformDetector│
+│ (fluent config)│ │ (sharing JSON) │ │  (OS/IDE/term)  │
+└────────────────┘ └────────────────┘ └─────────────────┘
 ```
+
+## AOT Readiness
+
+Squad.SDK.NET is fully compatible with .NET Native AOT publishing:
+
+- **`IsAotCompatible` is set to `true`** in the project file — the compiler enforces AOT safety
+- **All JSON serialization** uses source-generated contexts:
+  - `SquadStateJsonContext` — squad state persistence
+  - `SharingJsonContext` — import/export of squad configurations
+  - `ConfigJsonContext` — configuration file loading
+- **Zero reflection** — no `Activator.CreateInstance`, no `Type.GetType()`, no dynamic code generation anywhere in the SDK
+- **All DI registrations** use concrete factory delegates (no open-generic or reflection-based resolution)
+- Fully compatible with `dotnet publish -r <rid> /p:PublishAot=true`
 
 ## Testing
 
-The SDK includes a comprehensive test suite (14 test classes, 133 test cases):
+The SDK includes a comprehensive test suite with 20+ test classes and 433+ test cases (and growing):
 
 ```
 Squad.SDK.NET.Tests/
-├── SquadBuilderTests.cs           — Fluent builder validation
-├── CoordinatorTests.cs            — Routing and dispatch logic
-├── HookPipelineTests.cs           — Tool governance policies
-├── EventBusTests.cs               — Pub/sub correctness
-├── CostTrackerTests.cs            — Usage aggregation
-├── CharterCompilerTests.cs        — Charter parsing
-├── AgentSessionManagerTests.cs    — Session pooling
-├── ServiceCollectionExtensionsTests.cs
-├── SkillRegistryTests.cs
-├── SessionPoolTests.cs
-├── ConfigValidationTests.cs
-├── DirectResponseTests.cs
-├── FanOutTests.cs
-└── BuiltInToolsTests.cs
+├── AdvancedModulesTests.cs           — Advanced module integration
+├── AgentSessionManagerTests.cs       — Session pooling
+├── BuiltInToolsTests.cs              — Built-in tool execution
+├── CharterCompilerTests.cs           — Charter parsing
+├── ConfigAndBuilderParityTests.cs    — Config/builder equivalence
+├── ConfigValidationTests.cs          — Configuration validation
+├── CoordinatorTests.cs               — Routing and dispatch logic
+├── CostTrackerTests.cs               — Usage aggregation
+├── DirectResponseTests.cs            — Direct response tier
+├── EventBusTests.cs                  — Pub/sub correctness
+├── FanOutTests.cs                    — Parallel agent fan-out
+├── HookPipelineTests.cs              — Tool governance policies
+├── ServiceCollectionExtensionsTests.cs — DI registration
+├── SessionPoolTests.cs               — Session pool lifecycle
+├── SkillRegistryTests.cs             — Skill loading and lookup
+├── SquadBuilderTests.cs              — Fluent builder validation
+├── SquadClientIdempotencyTests.cs    — Client idempotency
+├── StorageStateResolutionTests.cs    — Storage state resolution
+└── SubAgentTests.cs                  — Sub-agent orchestration
 ```
 
 Run tests with:
 ```bash
-dotnet test Squad.SDK.NET.Tests
+dotnet test
 ```
 
 ## Requirements
 
-- **.NET 10** or later
+- **.NET 10** or later (AOT-compatible)
 - **GitHub.Copilot.SDK** v0.2.1-preview.1 or later
-- **Microsoft.Extensions.AI.Abstractions** (for extensible model interface)
-- **Microsoft.Extensions.DependencyInjection.Abstractions** (for service registration)
+- **Microsoft.Extensions.AI.Abstractions** v10.4.1 or later
+- **Microsoft.Extensions.DependencyInjection.Abstractions** v10.0.5 or later
+- **Microsoft.Extensions.Logging.Abstractions** v10.0.4 or later
+
+All dependencies are AOT-safe and trimming-compatible.
 
 ## License
 
