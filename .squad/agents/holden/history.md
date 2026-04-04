@@ -22,3 +22,10 @@
 - **RemoteProtocol.cs** — Added `Pong`, `AgentsListed`, `Status` constants to `RemoteEvents`. Replaced all string literals in `RemoteBridge.cs` with these constants.
 - **MultiSquadManager.cs** — Added `Path.GetInvalidFileNameChars()` validation in both `CreateSquad` and `DeleteSquad` to catch `:`, NUL, and other OS-invalid characters that passed the existing path separator checks.
 - All 457 tests pass (8 new from recent work), zero AOT warnings.
+
+### Comprehensive XML Documentation (2025)
+
+- Added XML doc comments to **all public types, methods, properties, and enums** across 70+ files in all 8 SDK modules: Abstractions, Builder, Core Runtime, Events, Hooks, Agents, Config, and Supporting Modules (Runtime, Skills, Casting, Sharing, Storage, Platform, Resolution, Remote, Roles, Marketplace, Tools, State, Utils, Extensions).
+- Every public member now has `<summary>`, `<param>`, `<returns>`, `<exception>`, and `<seealso>` tags as appropriate. Key entry points (`ISquadClient`, `SquadBuilder`, `EventBus`) include `<example>` blocks.
+- `SquadModelInfo` was already fully documented — left unchanged. Other pre-existing docs were preserved or improved if incomplete.
+- Build passes with 0 warnings, 0 errors. All 474 tests pass. No code logic was changed — only XML doc comments added.
