@@ -1,7 +1,7 @@
 namespace Squad.SDK.NET.Config;
 
 /// <summary>Configuration record that defines a single agent within a squad.</summary>
-/// <seealso cref="AgentCharter" />
+/// <seealso cref="SquadConfig" />
 public sealed record AgentConfig
 {
     /// <summary>Gets the unique name of the agent.</summary>

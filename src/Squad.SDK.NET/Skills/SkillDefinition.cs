@@ -20,7 +20,17 @@ public sealed record SkillDefinition
 }
 
 /// <summary>Indicates the confidence level of a skill definition.</summary>
-public enum SkillConfidence { Low, Medium, High }
+public enum SkillConfidence
+{
+    /// <summary>Low confidence.</summary>
+    Low,
+
+    /// <summary>Medium confidence.</summary>
+    Medium,
+
+    /// <summary>High confidence.</summary>
+    High
+}
 
 /// <summary>
 /// Represents a skill matched against a task, including a relevance score.

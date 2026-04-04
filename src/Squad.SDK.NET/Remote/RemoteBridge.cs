@@ -7,11 +7,12 @@ namespace Squad.SDK.NET.Remote;
 /// <summary>
 /// Bridges remote commands to the local <see cref="ISquadClient"/>, handling RPC-style requests.
 /// </summary>
-public sealed class RemoteBridge
+public sealed class RemoteBridge : IAsyncDisposable
 {
     private readonly ISquadClient _client;
     private readonly ILogger<RemoteBridge> _logger;
     private bool _isRunning;
+    private bool _disposed;
 
     /// <summary>
     /// Initializes a new <see cref="RemoteBridge"/>.
@@ -27,12 +28,28 @@ public sealed class RemoteBridge
     /// <summary>Gets a value indicating whether the bridge is currently running.</summary>
     public bool IsRunning => _isRunning;
 
+    /// <inheritdoc/>
+    public async ValueTask DisposeAsync()
+    {
+        if (_disposed)
+            return;
+
+        _disposed = true;
+        _isRunning = false;
+
+        if (_client is IAsyncDisposable asyncDisposable)
+            await asyncDisposable.DisposeAsync();
+        else if (_client is IDisposable disposable)
+            disposable.Dispose();
+    }
+
     /// <summary>Handles a remote command and returns the corresponding server event.</summary>
     /// <param name="command">The incoming client command.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>An <see cref="RCServerEvent"/> containing the response.</returns>
     public async Task<RCServerEvent> HandleCommandAsync(RCClientCommand command, CancellationToken cancellationToken = default)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         _logger.LogInformation("Handling remote command: {Command}", command.Command);
 
         return command.Command switch
@@ -55,6 +72,7 @@ public sealed class RemoteBridge
     /// <summary>Starts the remote bridge.</summary>
     public void Start()
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         _isRunning = true;
         _logger.LogInformation("Remote bridge started");
     }
@@ -62,6 +80,7 @@ public sealed class RemoteBridge
     /// <summary>Stops the remote bridge.</summary>
     public void Stop()
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         _isRunning = false;
         _logger.LogInformation("Remote bridge stopped");
     }

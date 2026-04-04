@@ -20,7 +20,17 @@ public sealed record ResolvedSquadPaths
 }
 
 /// <summary>Indicates how the squad was resolved.</summary>
-public enum SquadMode { Project, Personal, Global }
+public enum SquadMode
+{
+    /// <summary>Project-level squad resolution.</summary>
+    Project,
+
+    /// <summary>Personal-level squad resolution.</summary>
+    Personal,
+
+    /// <summary>Global-level squad resolution.</summary>
+    Global
+}
 
 /// <summary>
 /// Configuration stored in a squad directory.

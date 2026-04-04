@@ -5,6 +5,15 @@
     <RootNamespace>Squad.SDK.NET</RootNamespace>
     <Description>SDK for multi-agent orchestration using GitHub Copilot — .NET port of @bradygaster/squad-sdk</Description>
     <IsAotCompatible>true</IsAotCompatible>
+    <Version>0.1.0</Version>
+    <Authors>Jeremy Sinclair</Authors>
+    <Copyright>Copyright (c) 2026 Jeremy Sinclair</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/snickler/squad-sdk-net</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/snickler/squad-sdk-net</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>copilot;ai;agents;multi-agent;orchestration;squad;dotnet;sdk</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -12,6 +21,14 @@
     <PackageReference Include="Microsoft.Extensions.AI.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Squad.SDK.NET.Tests" />
   </ItemGroup>
 
 </Project>
