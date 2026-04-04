@@ -30,3 +30,15 @@
 ✅ All Skyflow references removed  
 ✅ SDK is now fully AOT-ready  
 ✅ Build clean, all 433 tests pass
+
+## Learnings
+
+### Session: Tests, README, and PR Update
+**Agents involved:** Drummer (tests), Dawes (README), Coordinator (PR description)
+**Work completed:**
+- Drummer added 16 new ConfigLoader/AOT tests in `ConfigLoaderTests.cs` (449 total tests, up from 433)
+- Dawes overhauled `src/Squad.SDK.NET/README.md`: added badges, 13-item features section, AOT readiness section, expanded architecture diagram, corrected test count from 133→449, pinned dependency versions
+- Coordinator updated PR #1 description: removed Skyflow donation reference, added comprehensive highlights and features list
+- All changes pushed to origin/init (7 commits total since initial push)
+
+**Validation:** 0 warnings, 0 errors, 449 tests pass
