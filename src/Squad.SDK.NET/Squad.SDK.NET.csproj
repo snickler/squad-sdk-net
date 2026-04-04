@@ -4,6 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>Squad.SDK.NET</RootNamespace>
     <Description>SDK for multi-agent orchestration using GitHub Copilot — .NET port of @bradygaster/squad-sdk</Description>
+    <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
 
   <ItemGroup>

@@ -1,21 +1,14 @@
 using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace Squad.SDK.NET.Config;
 
 public static class ConfigLoader
 {
-    private static readonly JsonSerializerOptions DefaultOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        Converters = { new JsonStringEnumConverter() }
-    };
-
     /// <summary>Loads a <see cref="SquadConfig"/> from a JSON file asynchronously.</summary>
     public static async Task<SquadConfig> LoadAsync(string filePath, CancellationToken ct = default)
     {
         await using var stream = File.OpenRead(filePath);
-        var config = await JsonSerializer.DeserializeAsync<SquadConfig>(stream, DefaultOptions, ct)
+        var config = await JsonSerializer.DeserializeAsync(stream, ConfigJsonContext.Default.SquadConfig, ct)
             .ConfigureAwait(false);
 
         return config ?? throw new InvalidOperationException($"Failed to deserialize SquadConfig from '{filePath}'.");
@@ -25,7 +18,7 @@ public static class ConfigLoader
     public static SquadConfig LoadSync(string filePath)
     {
         var json = File.ReadAllText(filePath);
-        return JsonSerializer.Deserialize<SquadConfig>(json, DefaultOptions)
+        return JsonSerializer.Deserialize(json, ConfigJsonContext.Default.SquadConfig)
             ?? throw new InvalidOperationException($"Failed to deserialize SquadConfig from '{filePath}'.");
     }
 
