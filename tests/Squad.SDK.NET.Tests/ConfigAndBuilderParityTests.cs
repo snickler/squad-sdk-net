@@ -424,7 +424,7 @@ public sealed class TelemetryBuilderTests
         var builder = new TelemetryBuilder()
             .Enabled(true)
             .Endpoint("https://otel.local")
-            .ServiceName("skyflow")
+            .ServiceName("squad-sdk")
             .SampleRate(0.5)
             .AspireDefaults();
 
@@ -837,7 +837,7 @@ public sealed class SquadBuilderNewFeaturesTests
             .WithTelemetry(t => t
                 .Enabled(true)
                 .Endpoint("https://otel.local")
-                .ServiceName("skyflow")
+                .ServiceName("squad-sdk")
                 .SampleRate(0.5)
                 .AspireDefaults())
             .Build();
@@ -846,7 +846,7 @@ public sealed class SquadBuilderNewFeaturesTests
         Assert.NotNull(config.Telemetry);
         Assert.True(config.Telemetry.Enabled);
         Assert.Equal("https://otel.local", config.Telemetry.Endpoint);
-        Assert.Equal("skyflow", config.Telemetry.ServiceName);
+        Assert.Equal("squad-sdk", config.Telemetry.ServiceName);
         Assert.Equal(0.5, config.Telemetry.SampleRate);
         Assert.True(config.Telemetry.AspireDefaults);
     }
@@ -995,7 +995,7 @@ public sealed class SquadBuilderNewFeaturesTests
                 .Budget(b => b.PerSession(100m)))
             .WithCeremony(c => c.Name("standup").Trigger("daily").Participants("coder"))
             .WithCasting(c => c.AllowlistUniverses("github").OverflowStrategy(OverflowStrategy.Queue).Capacity(3))
-            .WithTelemetry(t => t.ServiceName("skyflow").SampleRate(0.8))
+            .WithTelemetry(t => t.ServiceName("squad-sdk").SampleRate(0.8))
             .WithSkill(s => s.Name("dotnet").Confidence(SkillConfidenceLevel.High).Tools("dotnet"))
             .WithBudget(b => b.PerSession(500m))
             .WithHooks(h => h.ScrubPii().MaxAskUser(5))

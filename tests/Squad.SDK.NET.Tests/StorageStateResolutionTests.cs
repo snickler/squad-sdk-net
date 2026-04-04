@@ -155,7 +155,7 @@ public sealed class FileSystemStorageProviderTests : IDisposable
 
     public FileSystemStorageProviderTests()
     {
-        _tempDir = Path.Combine(Path.GetTempPath(), $"skyflow-test-{Guid.NewGuid():N}");
+        _tempDir = Path.Combine(Path.GetTempPath(), $"squad-test-{Guid.NewGuid():N}");
         _sut = new FileSystemStorageProvider(_tempDir, NullLogger<FileSystemStorageProvider>.Instance);
     }
 
@@ -253,7 +253,7 @@ public sealed class FileSystemStorageProviderTests : IDisposable
     [Fact]
     public async Task Constructor_CreatesRootDirectory()
     {
-        var customDir = Path.Combine(Path.GetTempPath(), $"skyflow-ctor-{Guid.NewGuid():N}");
+        var customDir = Path.Combine(Path.GetTempPath(), $"squad-ctor-{Guid.NewGuid():N}");
         try
         {
             _ = new FileSystemStorageProvider(customDir, NullLogger<FileSystemStorageProvider>.Instance);
@@ -804,7 +804,7 @@ public sealed class SquadResolverTests
     [Fact]
     public void ResolveSquad_DirWithSquadFolder_ReturnsProjectMode()
     {
-        var tempDir = Path.Combine(Path.GetTempPath(), $"skyflow-resolve-{Guid.NewGuid():N}");
+        var tempDir = Path.Combine(Path.GetTempPath(), $"squad-resolve-{Guid.NewGuid():N}");
         try
         {
             Directory.CreateDirectory(Path.Combine(tempDir, ".squad"));
@@ -825,7 +825,7 @@ public sealed class SquadResolverTests
     [Fact]
     public void IsInsideWorktree_RegularDir_ReturnsFalse()
     {
-        var tempDir = Path.Combine(Path.GetTempPath(), $"skyflow-wt-{Guid.NewGuid():N}");
+        var tempDir = Path.Combine(Path.GetTempPath(), $"squad-wt-{Guid.NewGuid():N}");
         try
         {
             Directory.CreateDirectory(tempDir);
