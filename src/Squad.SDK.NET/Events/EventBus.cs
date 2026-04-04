@@ -25,7 +25,7 @@ public sealed class EventBus : IEventBus, IAsyncDisposable
     {
         var bag = _typed.GetOrAdd(eventType, _ => []);
         bag.Add(handler);
-        return new Subscription(() => RemoveHandler(_typed.GetOrAdd(eventType, _ => []), handler));
+        return new Subscription(() => RemoveHandler(bag, handler));
     }
 
     public IDisposable SubscribeAll(Func<SquadEvent, Task> handler)

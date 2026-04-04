@@ -65,11 +65,7 @@ public static class ServiceCollectionExtensions
             var logger = sp.GetRequiredService<ILogger<EventBus>>();
             return new EventBus(logger);
         });
-        services.AddSingleton<IHookPipeline>(sp =>
-        {
-            var config = sp.GetService<SquadConfig>();
-            return new HookPipeline();
-        });
+        services.AddSingleton<IHookPipeline>(_ => new HookPipeline());
         services.AddSingleton<SkillRegistry>();
 
         // Hooks
