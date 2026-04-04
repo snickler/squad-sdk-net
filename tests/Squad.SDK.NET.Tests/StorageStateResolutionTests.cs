@@ -939,6 +939,34 @@ public sealed class MultiSquadManagerTests : IDisposable
     {
         Assert.Throws<ArgumentException>(() => _sut.DeleteSquad(name));
     }
+
+    [Theory]
+    [InlineData(":")]
+    [InlineData("*")]
+    [InlineData("?")]
+    [InlineData("<")]
+    [InlineData(">")]
+    [InlineData("|")]
+    [InlineData("\0")]
+    public void CreateSquad_InvalidFileNameChars_ThrowsArgumentException(string invalidChar)
+    {
+        var squadName = $"squad{invalidChar}name";
+        Assert.Throws<ArgumentException>(() => _sut.CreateSquad(squadName));
+    }
+
+    [Theory]
+    [InlineData(":")]
+    [InlineData("*")]
+    [InlineData("?")]
+    [InlineData("<")]
+    [InlineData(">")]
+    [InlineData("|")]
+    [InlineData("\0")]
+    public void DeleteSquad_InvalidFileNameChars_ThrowsArgumentException(string invalidChar)
+    {
+        var squadName = $"squad{invalidChar}name";
+        Assert.Throws<ArgumentException>(() => _sut.DeleteSquad(squadName));
+    }
 }
 
 #endregion

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Squad.SDK.NET.Abstractions;
@@ -508,6 +509,21 @@ public sealed class CastingEngineTests
     }
 
     [Fact]
+    public void Cast_WithCapacityQueue_ThrowsNotSupportedException()
+    {
+        var config = new CastingConfig
+        {
+            Capacity = 1,
+            OverflowStrategy = OverflowStrategy.Queue
+        };
+        var engine = new CastingEngine(config, NullLogger<CastingEngine>.Instance);
+
+        engine.Cast("agent-1", "lead");
+
+        Assert.Throws<NotSupportedException>(() => engine.Cast("agent-2", "tester"));
+    }
+
+    [Fact]
     public void Cast_WithAllowlistUniverse_UsesAllowedUniverse()
     {
         var config = new CastingConfig
@@ -687,6 +703,36 @@ public sealed class RemoteProtocolTests
         };
 
         Assert.Equal("connected", evt.Event);
+    }
+
+    [Fact]
+    public void RCServerEvent_DataAsJsonElement_WorksCorrectly()
+    {
+        var jsonData = JsonDocument.Parse("{\"key\":\"value\",\"count\":42}").RootElement;
+        var evt = new RCServerEvent
+        {
+            Event = RemoteEvents.Status,
+            SessionId = "s1",
+            Data = jsonData
+        };
+
+        Assert.NotNull(evt.Data);
+        Assert.Equal(JsonValueKind.Object, evt.Data.Value.ValueKind);
+        Assert.Equal("value", evt.Data.Value.GetProperty("key").GetString());
+        Assert.Equal(42, evt.Data.Value.GetProperty("count").GetInt32());
+    }
+
+    [Fact]
+    public void RCServerEvent_DataNull_WorksCorrectly()
+    {
+        var evt = new RCServerEvent
+        {
+            Event = RemoteEvents.Disconnected,
+            SessionId = "s1",
+            Data = null
+        };
+
+        Assert.Null(evt.Data);
     }
 
     [Fact]
