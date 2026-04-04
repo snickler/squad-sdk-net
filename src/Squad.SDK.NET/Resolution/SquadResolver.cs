@@ -2,11 +2,19 @@ using System.Runtime.InteropServices;
 
 namespace Squad.SDK.NET.Resolution;
 
+/// <summary>
+/// Resolves squad directory locations by walking up the directory tree and checking platform-specific paths.
+/// </summary>
 public static class SquadResolver
 {
+    /// <summary>Name of the squad directory marker.</summary>
     public const string SquadDirName = ".squad";
+    /// <summary>Name of the squad configuration file.</summary>
     public const string ConfigFileName = "squad.json";
 
+    /// <summary>Resolves a squad by walking up the directory tree from <paramref name="startDir"/>.</summary>
+    /// <param name="startDir">Directory to start searching from; defaults to the current directory.</param>
+    /// <returns>The resolved paths, or <see langword="null"/> if no squad directory is found.</returns>
     public static ResolvedSquadPaths? ResolveSquad(string? startDir = null)
     {
         var searchDir = startDir ?? Directory.GetCurrentDirectory();
@@ -45,6 +53,8 @@ public static class SquadResolver
         return null;
     }
 
+    /// <summary>Resolves the platform-specific personal squad directory path.</summary>
+    /// <returns>The directory path, or <see langword="null"/> if it cannot be determined.</returns>
     public static string? ResolvePersonalSquadDir()
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -62,6 +72,8 @@ public static class SquadResolver
         return string.IsNullOrEmpty(home) ? null : Path.Combine(home, ".config", "squad");
     }
 
+    /// <summary>Resolves the global squad configuration path (system-wide).</summary>
+    /// <returns>The directory path, or <see langword="null"/> if it cannot be determined.</returns>
     public static string? ResolveGlobalSquadPath()
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -73,6 +85,9 @@ public static class SquadResolver
         return "/etc/squad";
     }
 
+    /// <summary>Ensures the personal squad directory exists, creating it if necessary.</summary>
+    /// <returns>The full path to the personal squad directory.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when the personal squad directory cannot be determined.</exception>
     public static string EnsurePersonalSquadDir()
     {
         var dir = ResolvePersonalSquadDir() ?? throw new InvalidOperationException("Cannot determine personal squad directory.");
@@ -80,6 +95,9 @@ public static class SquadResolver
         return dir;
     }
 
+    /// <summary>Determines whether the given directory is inside a git worktree.</summary>
+    /// <param name="dir">Directory to check; defaults to the current directory.</param>
+    /// <returns><see langword="true"/> if a <c>.git</c> file (not directory) exists, indicating a worktree.</returns>
     public static bool IsInsideWorktree(string? dir = null)
     {
         var searchDir = dir ?? Directory.GetCurrentDirectory();

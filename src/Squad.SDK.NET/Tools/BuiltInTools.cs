@@ -6,6 +6,8 @@ namespace Squad.SDK.NET.Tools;
 public static class BuiltInTools
 {
     /// <summary>squad_route — Route a task to a specific agent.</summary>
+    /// <param name="handler">Handler that receives (task, agent) and returns a result.</param>
+    /// <returns>A <see cref="SquadToolDefinition"/> for the routing tool.</returns>
     public static SquadToolDefinition SquadRoute(Func<string, string, Task<SquadToolResult>> handler) =>
         SquadToolFactory.Define(
             name: "squad_route",
@@ -24,6 +26,8 @@ public static class BuiltInTools
             skipPermission: true);
 
     /// <summary>squad_decide — Record an architectural decision.</summary>
+    /// <param name="handler">Handler that receives (decision, rationale) and returns a result.</param>
+    /// <returns>A <see cref="SquadToolDefinition"/> for the decision tool.</returns>
     public static SquadToolDefinition SquadDecide(Func<string, string, Task<SquadToolResult>> handler) =>
         SquadToolFactory.Define(
             name: "squad_decide",
@@ -42,6 +46,8 @@ public static class BuiltInTools
             skipPermission: true);
 
     /// <summary>squad_memory — Store or retrieve agent memory.</summary>
+    /// <param name="handler">Handler that receives (operation, key, value) and returns a result.</param>
+    /// <returns>A <see cref="SquadToolDefinition"/> for the memory tool.</returns>
     public static SquadToolDefinition SquadMemory(Func<string, string, string, Task<SquadToolResult>> handler) =>
         SquadToolFactory.Define(
             name: "squad_memory",
@@ -62,6 +68,8 @@ public static class BuiltInTools
             skipPermission: true);
 
     /// <summary>squad_status — Query the status of an agent or all agents.</summary>
+    /// <param name="handler">Handler that receives an optional agent name and returns a result.</param>
+    /// <returns>A <see cref="SquadToolDefinition"/> for the status query tool.</returns>
     public static SquadToolDefinition SquadStatus(Func<string?, Task<SquadToolResult>> handler) =>
         SquadToolFactory.Define(
             name: "squad_status",

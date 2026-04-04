@@ -1,7 +1,13 @@
 namespace Squad.SDK.NET.Marketplace;
 
+/// <summary>
+/// Validates <see cref="MarketplaceManifest"/> instances against the marketplace schema rules.
+/// </summary>
 public static class ManifestValidator
 {
+    /// <summary>Validates the given manifest and returns a list of error messages.</summary>
+    /// <param name="manifest">The manifest to validate.</param>
+    /// <returns>An empty list when valid; otherwise a list of validation error messages.</returns>
     public static IReadOnlyList<string> Validate(MarketplaceManifest manifest)
     {
         var errors = new List<string>();
@@ -38,5 +44,8 @@ public static class ManifestValidator
         return errors.AsReadOnly();
     }
 
+    /// <summary>Returns <see langword="true"/> if the manifest passes all validation rules.</summary>
+    /// <param name="manifest">The manifest to check.</param>
+    /// <returns><see langword="true"/> when valid; otherwise <see langword="false"/>.</returns>
     public static bool IsValid(MarketplaceManifest manifest) => Validate(manifest).Count == 0;
 }

@@ -1,7 +1,13 @@
 namespace Squad.SDK.NET.Platform;
 
+/// <summary>
+/// Detects the hosting platform (GitHub, Azure DevOps, local) by inspecting git remote configuration.
+/// </summary>
 public static class PlatformDetector
 {
+    /// <summary>Detects the platform type for the given working directory.</summary>
+    /// <param name="workingDir">Optional working directory; defaults to the current directory.</param>
+    /// <returns>The detected <see cref="PlatformType"/>.</returns>
     public static PlatformType Detect(string? workingDir = null)
     {
         var dir = workingDir ?? Directory.GetCurrentDirectory();

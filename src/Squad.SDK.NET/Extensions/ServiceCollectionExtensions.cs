@@ -15,8 +15,17 @@ using Squad.SDK.NET.Storage;
 
 namespace Squad.SDK.NET.Extensions;
 
+/// <summary>
+/// Extension methods for registering Squad SDK services with <see cref="IServiceCollection"/>.
+/// </summary>
 public static class ServiceCollectionExtensions
 {
+    /// <summary>
+    /// Registers all Squad SDK services using in-memory storage.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="configure">Optional squad builder configuration action.</param>
+    /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddSquadSdk(
         this IServiceCollection services,
         Action<SquadBuilder>? configure = null)
@@ -24,6 +33,14 @@ public static class ServiceCollectionExtensions
         return AddSquadSdk(services, configure, useFileSystemStorage: false);
     }
 
+    /// <summary>
+    /// Registers all Squad SDK services with the option to use file-system-based storage.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="configure">Optional squad builder configuration action.</param>
+    /// <param name="useFileSystemStorage">When <see langword="true"/>, uses file-system storage instead of in-memory.</param>
+    /// <param name="storagePath">Optional custom storage directory path; defaults to a platform-specific local application data folder.</param>
+    /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddSquadSdk(
         this IServiceCollection services,
         Action<SquadBuilder>? configure,

@@ -4,20 +4,33 @@ using Squad.SDK.NET.Abstractions;
 
 namespace Squad.SDK.NET.Remote;
 
+/// <summary>
+/// Bridges remote commands to the local <see cref="ISquadClient"/>, handling RPC-style requests.
+/// </summary>
 public sealed class RemoteBridge
 {
     private readonly ISquadClient _client;
     private readonly ILogger<RemoteBridge> _logger;
     private bool _isRunning;
 
+    /// <summary>
+    /// Initializes a new <see cref="RemoteBridge"/>.
+    /// </summary>
+    /// <param name="client">The squad client to delegate commands to.</param>
+    /// <param name="logger">Logger instance.</param>
     public RemoteBridge(ISquadClient client, ILogger<RemoteBridge> logger)
     {
         _client = client;
         _logger = logger;
     }
 
+    /// <summary>Gets a value indicating whether the bridge is currently running.</summary>
     public bool IsRunning => _isRunning;
 
+    /// <summary>Handles a remote command and returns the corresponding server event.</summary>
+    /// <param name="command">The incoming client command.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>An <see cref="RCServerEvent"/> containing the response.</returns>
     public async Task<RCServerEvent> HandleCommandAsync(RCClientCommand command, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Handling remote command: {Command}", command.Command);
@@ -39,12 +52,14 @@ public sealed class RemoteBridge
         };
     }
 
+    /// <summary>Starts the remote bridge.</summary>
     public void Start()
     {
         _isRunning = true;
         _logger.LogInformation("Remote bridge started");
     }
 
+    /// <summary>Stops the remote bridge.</summary>
     public void Stop()
     {
         _isRunning = false;

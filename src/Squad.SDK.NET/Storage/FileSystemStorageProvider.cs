@@ -2,11 +2,19 @@ using Microsoft.Extensions.Logging;
 
 namespace Squad.SDK.NET.Storage;
 
+/// <summary>
+/// File-system-backed implementation of <see cref="IStorageProvider"/> that persists values as individual files.
+/// </summary>
 public sealed class FileSystemStorageProvider : IStorageProvider
 {
     private readonly string _rootPath;
     private readonly ILogger<FileSystemStorageProvider> _logger;
 
+    /// <summary>
+    /// Initializes a new <see cref="FileSystemStorageProvider"/> rooted at the specified directory.
+    /// </summary>
+    /// <param name="rootPath">Root directory for stored files; created if it does not exist.</param>
+    /// <param name="logger">Logger instance.</param>
     public FileSystemStorageProvider(string rootPath, ILogger<FileSystemStorageProvider> logger)
     {
         _rootPath = rootPath;
@@ -16,6 +24,7 @@ public sealed class FileSystemStorageProvider : IStorageProvider
 
     private string GetFilePath(string key) => Path.Combine(_rootPath, key.Replace('/', Path.DirectorySeparatorChar));
 
+    /// <inheritdoc />
     public async Task<string?> ReadAsync(string key, CancellationToken cancellationToken = default)
     {
         var path = GetFilePath(key);
@@ -23,6 +32,7 @@ public sealed class FileSystemStorageProvider : IStorageProvider
         return await File.ReadAllTextAsync(path, cancellationToken);
     }
 
+    /// <inheritdoc />
     public async Task WriteAsync(string key, string value, CancellationToken cancellationToken = default)
     {
         var path = GetFilePath(key);
@@ -31,11 +41,13 @@ public sealed class FileSystemStorageProvider : IStorageProvider
         await File.WriteAllTextAsync(path, value, cancellationToken);
     }
 
+    /// <inheritdoc />
     public Task<bool> ExistsAsync(string key, CancellationToken cancellationToken = default)
     {
         return Task.FromResult(File.Exists(GetFilePath(key)));
     }
 
+    /// <inheritdoc />
     public Task DeleteAsync(string key, CancellationToken cancellationToken = default)
     {
         var path = GetFilePath(key);
@@ -43,6 +55,7 @@ public sealed class FileSystemStorageProvider : IStorageProvider
         return Task.CompletedTask;
     }
 
+    /// <inheritdoc />
     public Task<IReadOnlyList<string>> ListAsync(string prefix = "", CancellationToken cancellationToken = default)
     {
         var searchPath = string.IsNullOrEmpty(prefix) ? _rootPath : Path.Combine(_rootPath, prefix.Replace('/', Path.DirectorySeparatorChar));
@@ -58,6 +71,7 @@ public sealed class FileSystemStorageProvider : IStorageProvider
         return Task.FromResult<IReadOnlyList<string>>(files.AsReadOnly());
     }
 
+    /// <inheritdoc />
     public Task<StorageStats> GetStatsAsync(CancellationToken cancellationToken = default)
     {
         if (!Directory.Exists(_rootPath))

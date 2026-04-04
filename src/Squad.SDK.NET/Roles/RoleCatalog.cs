@@ -2,6 +2,9 @@ using Squad.SDK.NET.Agents;
 
 namespace Squad.SDK.NET.Roles;
 
+/// <summary>
+/// Static catalog of predefined <see cref="BaseRole"/> definitions for common engineering roles.
+/// </summary>
 public static class RoleCatalog
 {
     private static readonly Dictionary<string, BaseRole> s_roles = new(StringComparer.OrdinalIgnoreCase)
@@ -99,17 +102,28 @@ public static class RoleCatalog
         }
     };
 
+    /// <summary>Returns the role with the given identifier, or <see langword="null"/> if not found.</summary>
+    /// <param name="roleId">The role identifier (case-insensitive).</param>
+    /// <returns>The <see cref="BaseRole"/> if found; otherwise <see langword="null"/>.</returns>
     public static BaseRole? GetRole(string roleId)
     {
         s_roles.TryGetValue(roleId, out var role);
         return role;
     }
 
+    /// <summary>Returns all predefined roles.</summary>
+    /// <returns>A read-only list of all <see cref="BaseRole"/> definitions.</returns>
     public static IReadOnlyList<BaseRole> GetAllRoles() => s_roles.Values.ToList().AsReadOnly();
 
+    /// <summary>Returns all roles matching the specified category.</summary>
+    /// <param name="category">The category to filter by.</param>
+    /// <returns>A read-only list of matching <see cref="BaseRole"/> definitions.</returns>
     public static IReadOnlyList<BaseRole> GetByCategory(RoleCategory category) =>
         s_roles.Values.Where(r => r.Category == category).ToList().AsReadOnly();
 
+    /// <summary>Searches roles by name, description, and expertise keywords.</summary>
+    /// <param name="query">Space-separated search terms.</param>
+    /// <returns>A read-only list of matching <see cref="BaseRole"/> definitions.</returns>
     public static IReadOnlyList<BaseRole> SearchRoles(string query)
     {
         var terms = query.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -122,6 +136,12 @@ public static class RoleCatalog
             .AsReadOnly();
     }
 
+    /// <summary>Creates an <see cref="AgentCharter"/> from a predefined role.</summary>
+    /// <param name="roleId">The role identifier to use.</param>
+    /// <param name="agentName">The agent name.</param>
+    /// <param name="additionalPrompt">Optional additional prompt text appended to the role's template.</param>
+    /// <returns>An <see cref="AgentCharter"/> configured with the role's defaults.</returns>
+    /// <exception cref="ArgumentException">Thrown when the role identifier is not found.</exception>
     public static AgentCharter UseRole(string roleId, string agentName, string? additionalPrompt = null)
     {
         var role = GetRole(roleId) ?? throw new ArgumentException($"Role '{roleId}' not found.", nameof(roleId));
