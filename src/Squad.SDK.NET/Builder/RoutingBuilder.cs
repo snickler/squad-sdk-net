@@ -28,7 +28,7 @@ public sealed class RoutingBuilder
         _rules.Add(new RoutingRule
         {
             WorkType = workType,
-            Agents = agents,
+            Agents = new List<string>(agents).AsReadOnly(),
             Tier = tier,
             Priority = priority
         });
@@ -55,7 +55,7 @@ public sealed class RoutingBuilder
 
     internal RoutingConfig Build() => new()
     {
-        Rules = _rules.AsReadOnly(),
+        Rules = new List<RoutingRule>(_rules).AsReadOnly(),
         DefaultAgent = _defaultAgent,
         FallbackBehavior = _fallback
     };

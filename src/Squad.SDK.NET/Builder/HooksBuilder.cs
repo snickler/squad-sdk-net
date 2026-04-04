@@ -41,8 +41,8 @@ public sealed class HooksBuilder
 
     internal HooksDefinition Build() => new()
     {
-        AllowedWritePaths = _allowedWritePaths.Count > 0 ? _allowedWritePaths.AsReadOnly() : null,
-        BlockedCommands = _blockedCommands.Count > 0 ? _blockedCommands.AsReadOnly() : null,
+        AllowedWritePaths = _allowedWritePaths.Count > 0 ? new List<string>(_allowedWritePaths).AsReadOnly() : null,
+        BlockedCommands = _blockedCommands.Count > 0 ? new List<string>(_blockedCommands).AsReadOnly() : null,
         MaxAskUserPerSession = _maxAskUser,
         ScrubPii = _scrubPii,
         ReviewerLockout = _reviewerLockout

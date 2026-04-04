@@ -29,7 +29,7 @@ public sealed class CastingBuilder
 
     internal CastingConfig Build() => new()
     {
-        AllowlistUniverses = _allowlistUniverses.AsReadOnly(),
+        AllowlistUniverses = new List<string>(_allowlistUniverses).AsReadOnly(),
         OverflowStrategy = _overflowStrategy,
         Capacity = _capacity
     };

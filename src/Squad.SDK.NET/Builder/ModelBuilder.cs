@@ -54,7 +54,7 @@ public sealed class ModelBuilder
     {
         DefaultModel = _defaultModel,
         DefaultTier = _defaultTier,
-        FallbackChains = _fallbackChains,
+        FallbackChains = new Dictionary<ModelTier, IReadOnlyList<string>>(_fallbackChains),
         PreferSameProvider = _preferSameProvider
     };
 }
