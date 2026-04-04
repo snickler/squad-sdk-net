@@ -42,3 +42,19 @@
 - All changes pushed to origin/init (7 commits total since initial push)
 
 **Validation:** 0 warnings, 0 errors, 449 tests pass
+
+## Session: GitHub.Copilot.SDK Stable Update
+**Date:** 2026-04-04
+**Trigger:** Team command — "Update GitHub.Copilot.SDK version. It is now out of preview."
+**Participants:** Holden (Lead .NET Architect)
+
+### Actions
+- **Holden** updated `GitHub.Copilot.SDK` from `0.2.1-preview.1` to stable `0.2.1` in `Directory.Packages.props`
+- Also bumped 6 other dependencies to latest stable: Logging 10.0.5, Test SDK 18.3.0, xunit 2.9.3, xunit.runner.visualstudio 3.1.5, coverlet.collector 8.0.1, Logging.Abstractions 10.0.5
+- Updated `src/Squad.SDK.NET/README.md` with new version references
+- Zero API surface changes — preview-to-stable transition was seamless
+- Build: 0 warnings, 0 errors
+- Tests: 449 passed, 0 failed
+
+### Outcome
+All packages at latest stable versions. Pushed to origin/init.
