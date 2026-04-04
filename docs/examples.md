@@ -108,6 +108,8 @@ var session = await client.CreateSessionAsync(config);
 
 The `SquadBuilder` is the fluent entry point for building a complete `SquadConfig`.
 
+> **Immutability guarantee:** All builders snapshot their internal collections at `Build()` time. You can safely reuse a builder after calling `Build()` — previously built configs will not be affected by subsequent mutations.
+
 ### Team Configuration
 
 ```csharp

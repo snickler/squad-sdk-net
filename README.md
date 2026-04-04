@@ -23,7 +23,7 @@ dotnet test Squad.SDK.NET.slnx
 ```
 squad-sdk-net/
 ├── src/
-│   └── Squad.SDK.NET/          # Core SDK library
+│   └── Squad.SDK.NET/          # Core SDK library (v0.1.0)
 │       ├── Abstractions/       # Interfaces and contracts
 │       ├── Agents/             # Agent session management
 │       ├── Builder/            # Fluent configuration builders
@@ -49,8 +49,16 @@ squad-sdk-net/
 │   └── Squad.SDK.NET.Tests/    # Unit tests (474+ tests)
 ├── docs/
 │   └── examples.md             # Comprehensive usage examples
+├── .editorconfig               # Code style rules
+├── .github/
+│   ├── ISSUE_TEMPLATE/         # Bug report & feature request templates
+│   ├── PULL_REQUEST_TEMPLATE.md
+│   └── workflows/ci.yml        # CI (multi-OS matrix, coverage, pack)
+├── CHANGELOG.md                # Release notes
+├── CONTRIBUTING.md             # Contribution guide
+├── SECURITY.md                 # Vulnerability reporting policy
 ├── Squad.SDK.NET.slnx          # Solution file
-├── Directory.Build.props       # Shared build properties
+├── Directory.Build.props       # Shared build properties (SourceLink, warnings-as-errors)
 ├── Directory.Packages.props    # Central package management
 └── global.json                 # SDK version pinning
 ```
@@ -60,6 +68,21 @@ squad-sdk-net/
 - **[Usage Examples](docs/examples.md)** — 16-section cookbook with copy-paste-ready C# examples covering the Builder API, routing, events, hooks, cost tracking, sessions, skills, casting, import/export, and more.
 - **API Documentation** — All public types, methods, and properties include comprehensive XML doc comments for IntelliSense and generated API reference.
 - **[Package README](src/Squad.SDK.NET/README.md)** — Detailed feature overview, architecture diagram, and quick start guide.
+- **[Changelog](CHANGELOG.md)** — Release notes following [Keep a Changelog](https://keepachangelog.com/) format.
+
+## Build & Packaging
+
+- **SourceLink** enabled — step through NuGet package source in your debugger
+- **Deterministic builds** with `ContinuousIntegrationBuild` in CI
+- **Symbol packages** (`.snupkg`) for source-level debugging
+- **TreatWarningsAsErrors** — zero tolerance for compiler warnings
+- **CI matrix** — builds and tests on both Ubuntu and Windows
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, coding guidelines, and the pull request process.
+
+For security vulnerabilities, see [SECURITY.md](SECURITY.md).
 
 ## Requirements
 

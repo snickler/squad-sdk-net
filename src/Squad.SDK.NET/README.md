@@ -23,9 +23,12 @@ Squad.SDK.NET is a .NET port of [@bradygaster/squad-sdk](https://github.com/brad
 - **Platform detection** — OS, terminal, and IDE awareness
 - **Import/export** for sharing squad configurations as portable JSON
 - **Full AOT / Native AOT compatibility** — zero reflection, zero dynamic code generation
-- **Source-generated JSON serialization** via three dedicated `JsonSerializerContext` implementations
+- **Source-generated JSON serialization** via four dedicated `JsonSerializerContext` implementations
 - **Microsoft.Extensions.DependencyInjection integration** — one-call service registration
 - **Comprehensive XML documentation** on all public types, methods, and properties for IntelliSense support
+- **Immutable built configs** — all builders snapshot collections at build time for thread safety
+- **SourceLink enabled** — step through NuGet package source in your debugger
+- **Deterministic builds** with symbol packages (`.snupkg`) for source-level debugging
 
 ## Installation
 
@@ -345,6 +348,7 @@ Squad.SDK.NET is fully compatible with .NET Native AOT publishing:
   - `SquadStateJsonContext` — squad state persistence
   - `SharingJsonContext` — import/export of squad configurations
   - `ConfigJsonContext` — configuration file loading
+  - `RemoteJsonContext` — remote bridge protocol messages
 - **Zero reflection** — no `Activator.CreateInstance`, no `Type.GetType()`, no dynamic code generation anywhere in the SDK
 - **All DI registrations** use concrete factory delegates (no open-generic or reflection-based resolution)
 - Fully compatible with `dotnet publish -r <rid> /p:PublishAot=true`
