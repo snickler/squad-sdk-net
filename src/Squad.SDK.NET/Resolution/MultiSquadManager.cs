@@ -31,7 +31,8 @@ public sealed class MultiSquadManager
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Squad name is required.", nameof(name));
 
-        if (name.Contains(Path.DirectorySeparatorChar) || name.Contains(Path.AltDirectorySeparatorChar) || name.Contains(".."))
+        if (name.Contains(Path.DirectorySeparatorChar) || name.Contains(Path.AltDirectorySeparatorChar)
+            || name.Contains('\\') || name.Contains('/') || name.Contains(".."))
             throw new ArgumentException("Squad name must not contain path separators or '..'.", nameof(name));
 
         var personalDir = SquadResolver.EnsurePersonalSquadDir();
@@ -56,7 +57,8 @@ public sealed class MultiSquadManager
         if (personalDir is null)
             throw new InvalidOperationException("Cannot determine personal squad directory.");
 
-        if (name.Contains(Path.DirectorySeparatorChar) || name.Contains(Path.AltDirectorySeparatorChar) || name.Contains(".."))
+        if (name.Contains(Path.DirectorySeparatorChar) || name.Contains(Path.AltDirectorySeparatorChar)
+            || name.Contains('\\') || name.Contains('/') || name.Contains(".."))
             throw new ArgumentException("Squad name must not contain path separators or '..'.", nameof(name));
 
         var squadDir = Path.Combine(personalDir, name);
