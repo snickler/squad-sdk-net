@@ -36,6 +36,8 @@ public static class PlatformDetector
                     if (content.StartsWith("gitdir:", StringComparison.OrdinalIgnoreCase))
                     {
                         var gitDir = content["gitdir:".Length..].Trim();
+                        if (!Path.IsPathRooted(gitDir))
+                            gitDir = Path.GetFullPath(Path.Combine(dir, gitDir));
                         gitConfigPath = Path.Combine(gitDir, "..", "..", "config");
                         if (!File.Exists(gitConfigPath))
                             gitConfigPath = Path.Combine(gitDir, "config");

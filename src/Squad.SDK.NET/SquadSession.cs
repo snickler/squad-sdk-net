@@ -12,6 +12,7 @@ public sealed class SquadSession : ISquadSession
 {
     private readonly CopilotSession _session;
     private readonly ILogger<SquadSession> _logger;
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _toolCallNames = new();
 
     public SquadSession(CopilotSession session, ILogger<SquadSession> logger)
     {
@@ -133,22 +134,13 @@ public sealed class SquadSession : ISquadSession
             ToolExecutionStartEvent e => (
                 SquadEventType.SessionToolCall,
                 e.Data is not null
-                    ? new ToolCallPayload
-                    {
-                        ToolName  = e.Data.ToolName ?? string.Empty,
-                        Arguments = e.Data.Arguments as IReadOnlyDictionary<string, object?>,
-                        Status    = ToolCallStatus.Running
-                    }
+                    ? MapToolStart(e.Data)
                     : null),
 
             ToolExecutionCompleteEvent e => (
                 SquadEventType.SessionToolCall,
                 e.Data is not null
-                    ? new ToolCallPayload
-                    {
-                        ToolName = e.Data.ToolCallId ?? string.Empty,
-                        Status   = e.Data.Error is null ? ToolCallStatus.Completed : ToolCallStatus.Error
-                    }
+                    ? MapToolComplete(e.Data)
                     : null),
 
             _ => (SquadEventType.SessionMessage, (object?)null)
@@ -173,7 +165,30 @@ public sealed class SquadSession : ISquadSession
         };
     }
 
-    // SessionEvent does not expose a session-scoped id on the event itself;
-    // we use a local helper to keep the mapping pure.
-    private static string? _sessionIdFromEvent(SessionEvent _) => null;
+    private ToolCallPayload MapToolStart(ToolExecutionStartData data)
+    {
+        if (data.ToolCallId is not null && data.ToolName is not null)
+            _toolCallNames[data.ToolCallId] = data.ToolName;
+
+        return new ToolCallPayload
+        {
+            ToolName  = data.ToolName ?? string.Empty,
+            Arguments = data.Arguments as IReadOnlyDictionary<string, object?>,
+            Status    = ToolCallStatus.Running
+        };
+    }
+
+    private ToolCallPayload MapToolComplete(ToolExecutionCompleteData data)
+    {
+        var toolName = data.ToolCallId is not null
+            && _toolCallNames.TryRemove(data.ToolCallId, out var name)
+            ? name
+            : data.ToolCallId ?? string.Empty;
+
+        return new ToolCallPayload
+        {
+            ToolName = toolName,
+            Status   = data.Error is null ? ToolCallStatus.Completed : ToolCallStatus.Error
+        };
+    }
 }

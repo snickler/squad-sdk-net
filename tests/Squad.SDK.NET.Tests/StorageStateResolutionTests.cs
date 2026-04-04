@@ -919,6 +919,26 @@ public sealed class MultiSquadManagerTests : IDisposable
     {
         Assert.Throws<InvalidOperationException>(() => _sut.DeleteSquad($"ghost-{Guid.NewGuid():N}"));
     }
+
+    [Theory]
+    [InlineData("../escape")]
+    [InlineData("..\\escape")]
+    [InlineData("a/b")]
+    [InlineData("a\\b")]
+    public void CreateSquad_PathTraversal_ThrowsArgumentException(string name)
+    {
+        Assert.Throws<ArgumentException>(() => _sut.CreateSquad(name));
+    }
+
+    [Theory]
+    [InlineData("../escape")]
+    [InlineData("..\\escape")]
+    [InlineData("a/b")]
+    [InlineData("a\\b")]
+    public void DeleteSquad_PathTraversal_ThrowsArgumentException(string name)
+    {
+        Assert.Throws<ArgumentException>(() => _sut.DeleteSquad(name));
+    }
 }
 
 #endregion

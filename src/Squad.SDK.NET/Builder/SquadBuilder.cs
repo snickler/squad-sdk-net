@@ -56,6 +56,14 @@ public sealed class SquadBuilder
     public SquadBuilder WithHooks(PolicyConfig policy)
     {
         _hooks = policy;
+        _hooksDefinition = new HooksDefinition
+        {
+            AllowedWritePaths = policy.AllowedWritePaths,
+            BlockedCommands = policy.BlockedCommands,
+            MaxAskUserPerSession = policy.MaxAskUserPerSession,
+            ScrubPii = policy.ScrubPii,
+            ReviewerLockout = policy.ReviewerLockout
+        };
         return this;
     }
 

@@ -8,3 +8,9 @@
 - `SquadState` and `TypedCollection<T>` already used `JsonTypeInfo<T>` — no changes needed.
 - All DI registrations in `ServiceCollectionExtensions.cs` use concrete factory delegates — AOT safe.
 - No reflection, no `dynamic`, no expression compilation anywhere in the SDK.
+
+### Package Update: GitHub.Copilot.SDK 0.2.1-preview.1 → 0.2.1 (stable)
+
+- Updated `GitHub.Copilot.SDK` from `0.2.1-preview.1` to stable `0.2.1`. No API surface changes detected — `CopilotClient`, `CopilotSession`, `CopilotClientOptions`, `ConnectionState`, and all other imported types remain identical.
+- Also bumped: `Microsoft.Extensions.Logging` (10.0.0→10.0.5), `Microsoft.Extensions.Logging.Abstractions` (10.0.4→10.0.5), `Microsoft.NET.Test.Sdk` (17.12.0→18.3.0), `xunit` (2.9.2→2.9.3), `xunit.runner.visualstudio` (2.8.2→3.1.5), `coverlet.collector` (6.0.2→8.0.1).
+- All 449 tests pass, zero warnings. The preview→stable transition was seamless with no breaking changes.

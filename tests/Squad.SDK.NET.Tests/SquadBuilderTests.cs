@@ -123,8 +123,11 @@ public sealed class SquadBuilderTests
             .WithHooks(policy);
         var config = builder.Build();
 
-        // Assert - config doesn't expose hooks/policy directly, but call shouldn't throw
+        // Assert - WithHooks(PolicyConfig) should populate HooksDefinition on the built config
         Assert.NotNull(config);
+        Assert.NotNull(config.Hooks);
+        Assert.Equal(5, config.Hooks.MaxAskUserPerSession);
+        Assert.True(config.Hooks.ScrubPii);
     }
 
     [Fact]
