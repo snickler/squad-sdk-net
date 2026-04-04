@@ -76,7 +76,7 @@ tests/Squad.SDK.NET.Tests/
 ## Testing Conventions
 
 - **Framework:** xUnit
-- **Mocking:** NSubstitute
+- **Mocking:** Moq
 - **Assertions:** FluentAssertions (or raw xUnit Assert)
 - **Naming:** `MethodName_Scenario_ExpectedResult`
 - **Coverage:** Every public method has at least one test

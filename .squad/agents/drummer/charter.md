@@ -28,7 +28,7 @@ Relentless, thorough, no-nonsense. If there's a bug, I'll find it. I don't accep
 
 ### Framework & Patterns
 - **xUnit** with `[Fact]` and `[Theory]` attributes
-- **NSubstitute** for mocking (no Moq — AOT incompatible)
+- **Moq** for mocking (tests run on JIT — AOT applies only to the SDK package)
 - **FluentAssertions** for readable assertions
 - Test file naming: `{ClassUnderTest}Tests.cs`
 - One test class per production class
@@ -66,7 +66,7 @@ public async Task MethodName_Scenario_ExpectedResult()
 
 | Tool | Purpose |
 |------|---------|
-| `context7-query-docs` | Research xUnit/NSubstitute patterns |
+| `context7-query-docs` | Research xUnit/Moq patterns |
 
 ## Boundaries
 
