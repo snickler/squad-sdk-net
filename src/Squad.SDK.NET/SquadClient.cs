@@ -16,6 +16,12 @@ public sealed class SquadClient : ISquadClient
     private readonly ILogger<SquadClient> _logger;
     private bool _isStarted;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SquadClient"/> class.
+    /// </summary>
+    /// <param name="loggerFactory">The logger factory used to create loggers for the client and its sessions.</param>
+    /// <param name="options">Optional configuration for the underlying <see cref="CopilotClient"/>.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="loggerFactory"/> is <see langword="null"/>.</exception>
     public SquadClient(ILoggerFactory loggerFactory, CopilotClientOptions? options = null)
     {
         _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
@@ -23,6 +29,7 @@ public sealed class SquadClient : ISquadClient
         _copilotClient = new CopilotClient(options ?? new CopilotClientOptions());
     }
 
+    /// <inheritdoc />
     public Abstractions.ConnectionState State
     {
         get
@@ -33,6 +40,7 @@ public sealed class SquadClient : ISquadClient
         }
     }
 
+    /// <inheritdoc />
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
         if (_isStarted)
@@ -46,6 +54,7 @@ public sealed class SquadClient : ISquadClient
         _isStarted = true;
     }
 
+    /// <inheritdoc />
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         if (!_isStarted)
@@ -59,6 +68,7 @@ public sealed class SquadClient : ISquadClient
         _isStarted = false;
     }
 
+    /// <inheritdoc />
     public async Task<ISquadSession> CreateSessionAsync(
         SquadSessionConfig? config = null,
         CancellationToken cancellationToken = default)
@@ -80,6 +90,7 @@ public sealed class SquadClient : ISquadClient
         }
     }
 
+    /// <inheritdoc />
     public async Task<ISquadSession> ResumeSessionAsync(
         string sessionId,
         CancellationToken cancellationToken = default)
@@ -93,9 +104,11 @@ public sealed class SquadClient : ISquadClient
         return new SquadSession(session, sessionLogger);
     }
 
+    /// <inheritdoc />
     public Task DeleteSessionAsync(string sessionId, CancellationToken cancellationToken = default)
         => _copilotClient.DeleteSessionAsync(sessionId, cancellationToken);
 
+    /// <inheritdoc />
     public async Task<IReadOnlyList<SquadSessionMetadata>> ListSessionsAsync(
         CancellationToken cancellationToken = default)
     {
@@ -111,6 +124,7 @@ public sealed class SquadClient : ISquadClient
             .ToList();
     }
 
+    /// <inheritdoc />
     public async Task<IReadOnlyList<SquadModelInfo>> ListModelsAsync(
         CancellationToken cancellationToken = default)
     {
@@ -128,6 +142,7 @@ public sealed class SquadClient : ISquadClient
         return result;
     }
 
+    /// <inheritdoc />
     public IDisposable On(Action<SquadEvent> handler)
     {
         return _copilotClient.On(evt =>
@@ -141,6 +156,7 @@ public sealed class SquadClient : ISquadClient
         });
     }
 
+    /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
         _isStarted = false;

@@ -5,6 +5,11 @@ using Squad.SDK.NET.Abstractions;
 
 namespace Squad.SDK.NET.Events;
 
+/// <summary>
+/// Channel-based event bus that dispatches <see cref="SquadEvent"/> instances to registered subscribers.
+/// </summary>
+/// <seealso cref="SquadEvent"/>
+/// <seealso cref="SquadEventType"/>
 public sealed class EventBus : IEventBus, IAsyncDisposable
 {
     private readonly Channel<SquadEvent> _channel =
@@ -15,12 +20,18 @@ public sealed class EventBus : IEventBus, IAsyncDisposable
     private readonly Task _dispatchLoop;
     private readonly ILogger<EventBus> _logger;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="EventBus"/> class and starts the internal dispatch loop.
+    /// </summary>
+    /// <param name="logger">The logger instance.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="logger"/> is <see langword="null"/>.</exception>
     public EventBus(ILogger<EventBus> logger)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _dispatchLoop = Task.Run(DispatchLoopAsync);
     }
 
+    /// <inheritdoc />
     public IDisposable Subscribe(SquadEventType eventType, Func<SquadEvent, Task> handler)
     {
         var bag = _typed.GetOrAdd(eventType, _ => []);
@@ -28,24 +39,30 @@ public sealed class EventBus : IEventBus, IAsyncDisposable
         return new Subscription(() => RemoveHandler(bag, handler));
     }
 
+    /// <inheritdoc />
     public IDisposable SubscribeAll(Func<SquadEvent, Task> handler)
     {
         _allSubscribers.Add(handler);
         return new Subscription(() => RemoveHandler(_allSubscribers, handler));
     }
 
+    /// <inheritdoc />
     public async Task EmitAsync(SquadEvent squadEvent, CancellationToken cancellationToken = default)
     {
         _logger.LogTrace("Event emitted: {Type} session={SessionId}", squadEvent.Type, squadEvent.SessionId);
         await _channel.Writer.WriteAsync(squadEvent, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public async Task ShutdownAsync(CancellationToken cancellationToken = default)
     {
         _channel.Writer.TryComplete();
         await _dispatchLoop.WaitAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Completes the event channel and waits for the dispatch loop to drain.
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         _channel.Writer.TryComplete();

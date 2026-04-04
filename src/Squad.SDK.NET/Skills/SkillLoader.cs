@@ -1,8 +1,14 @@
 namespace Squad.SDK.NET.Skills;
 
+/// <summary>
+/// Loads <see cref="SkillDefinition"/> instances from SKILL.md files with YAML frontmatter.
+/// </summary>
 public static class SkillLoader
 {
     /// <summary>Loads a single SKILL.md file with YAML frontmatter.</summary>
+    /// <param name="filePath">Absolute path to the SKILL.md file.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The parsed <see cref="SkillDefinition"/>.</returns>
     public static async Task<SkillDefinition> LoadAsync(string filePath, CancellationToken ct = default)
     {
         var content = await File.ReadAllTextAsync(filePath, ct).ConfigureAwait(false);
@@ -10,6 +16,9 @@ public static class SkillLoader
     }
 
     /// <summary>Recursively loads all SKILL.md files from a directory.</summary>
+    /// <param name="directoryPath">Root directory to search.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>A list of parsed <see cref="SkillDefinition"/> instances.</returns>
     public static async Task<IReadOnlyList<SkillDefinition>> LoadDirectoryAsync(
         string directoryPath,
         CancellationToken ct = default)

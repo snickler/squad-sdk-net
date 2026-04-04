@@ -3,6 +3,12 @@ using Squad.SDK.NET.Abstractions;
 
 namespace Squad.SDK.NET.Hooks;
 
+/// <summary>
+/// Runs registered pre- and post-tool-use hooks in sequence, optionally enforcing policy constraints.
+/// </summary>
+/// <seealso cref="PreToolUseContext"/>
+/// <seealso cref="PostToolUseContext"/>
+/// <seealso cref="PolicyConfig"/>
 public sealed class HookPipeline : IHookPipeline
 {
     private readonly List<Func<PreToolUseContext, Task<PreToolUseResult>>> _preHooks = [];
@@ -12,6 +18,10 @@ public sealed class HookPipeline : IHookPipeline
     // Per-session ask_user counters for MaxAskUserPerSession enforcement
     private readonly ConcurrentDictionary<string, int> _askUserCounts = new();
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="HookPipeline"/> class, registering any built-in policy hooks.
+    /// </summary>
+    /// <param name="policy">Optional policy configuration that enables built-in enforcement hooks.</param>
     public HookPipeline(PolicyConfig? policy = null)
     {
         _policy = policy;
@@ -29,12 +39,15 @@ public sealed class HookPipeline : IHookPipeline
         }
     }
 
+    /// <inheritdoc />
     public void AddPreToolHook(Func<PreToolUseContext, Task<PreToolUseResult>> hook) =>
         _preHooks.Add(hook);
 
+    /// <inheritdoc />
     public void AddPostToolHook(Func<PostToolUseContext, Task<PostToolUseResult>> hook) =>
         _postHooks.Add(hook);
 
+    /// <inheritdoc />
     public async Task<PreToolUseResult> RunPreToolHooksAsync(
         PreToolUseContext context, CancellationToken cancellationToken = default)
     {
@@ -61,6 +74,7 @@ public sealed class HookPipeline : IHookPipeline
             : PreToolUseResult.Modify(currentArgs);
     }
 
+    /// <inheritdoc />
     public async Task<PostToolUseResult> RunPostToolHooksAsync(
         PostToolUseContext context, CancellationToken cancellationToken = default)
     {

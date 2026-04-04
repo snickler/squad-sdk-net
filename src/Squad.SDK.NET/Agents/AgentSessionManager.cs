@@ -6,6 +6,9 @@ using Squad.SDK.NET.Events;
 
 namespace Squad.SDK.NET.Agents;
 
+/// <summary>Manages agent sessions, including spawning, resuming, destroying, and querying agents and their hierarchies.</summary>
+/// <seealso cref="AgentSessionInfo"/>
+/// <seealso cref="AgentCharter"/>
 public sealed class AgentSessionManager : IAgentSessionManager
 {
     private readonly ISquadClient _client;
@@ -14,6 +17,11 @@ public sealed class AgentSessionManager : IAgentSessionManager
     private readonly ConcurrentDictionary<string, AgentSessionInfo> _agents = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, ISquadSession> _sessions = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>Initializes a new instance of the <see cref="AgentSessionManager"/> class.</summary>
+    /// <param name="client">The squad client used to create and resume sessions.</param>
+    /// <param name="eventBus">The event bus used to emit agent lifecycle events.</param>
+    /// <param name="logger">The logger instance.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="client"/>, <paramref name="eventBus"/>, or <paramref name="logger"/> is <see langword="null"/>.</exception>
     public AgentSessionManager(ISquadClient client, IEventBus eventBus, ILogger<AgentSessionManager> logger)
     {
         _client = client ?? throw new ArgumentNullException(nameof(client));
@@ -21,6 +29,11 @@ public sealed class AgentSessionManager : IAgentSessionManager
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
+    /// <summary>Spawns a new agent session based on the specified charter.</summary>
+    /// <param name="charter">The charter defining the agent's identity and configuration.</param>
+    /// <param name="mode">The response tier for the session.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>The <see cref="AgentSessionInfo"/> representing the spawned agent.</returns>
     public async Task<AgentSessionInfo> SpawnAsync(AgentCharter charter, ResponseTier mode = ResponseTier.Standard, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Spawning agent '{AgentName}' with model '{Model}'", charter.Name, charter.ModelPreference);
@@ -88,6 +101,11 @@ public sealed class AgentSessionManager : IAgentSessionManager
         return info;
     }
 
+    /// <summary>Resumes an existing agent session by name.</summary>
+    /// <param name="agentName">The name of the agent to resume.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>The <see cref="AgentSessionInfo"/> for the resumed agent.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when the agent is not found or has no session ID.</exception>
     public async Task<AgentSessionInfo> ResumeAsync(string agentName, CancellationToken cancellationToken = default)
     {
         if (!_agents.TryGetValue(agentName, out var info))
@@ -113,15 +131,27 @@ public sealed class AgentSessionManager : IAgentSessionManager
         return info;
     }
 
+    /// <summary>Gets the session info for an agent by name.</summary>
+    /// <param name="name">The agent name to look up.</param>
+    /// <returns>The <see cref="AgentSessionInfo"/> if found; otherwise, <see langword="null"/>.</returns>
     public AgentSessionInfo? GetAgent(string name) =>
         _agents.TryGetValue(name, out var info) ? info : null;
 
+    /// <summary>Gets all currently tracked agent sessions.</summary>
+    /// <returns>A read-only list of all <see cref="AgentSessionInfo"/> instances.</returns>
     public IReadOnlyList<AgentSessionInfo> GetAllAgents() =>
         [.. _agents.Values];
 
+    /// <summary>Gets the underlying <see cref="ISquadSession"/> for an agent by name.</summary>
+    /// <param name="agentName">The agent name to look up.</param>
+    /// <returns>The <see cref="ISquadSession"/> if found; otherwise, <see langword="null"/>.</returns>
     public ISquadSession? GetSession(string agentName) =>
         _sessions.TryGetValue(agentName, out var session) ? session : null;
 
+    /// <summary>Destroys an agent and all of its sub-agents, releasing their sessions.</summary>
+    /// <param name="agentName">The name of the agent to destroy.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>A task representing the asynchronous destroy operation.</returns>
     public async Task DestroyAsync(string agentName, CancellationToken cancellationToken = default)
     {
         if (!_agents.TryGetValue(agentName, out var info)) return;
@@ -157,6 +187,13 @@ public sealed class AgentSessionManager : IAgentSessionManager
         }, cancellationToken);
     }
 
+    /// <summary>Spawns a sub-agent under an existing parent agent.</summary>
+    /// <param name="parentAgentName">The name of the parent agent.</param>
+    /// <param name="charter">The charter defining the sub-agent.</param>
+    /// <param name="mode">The response tier for the sub-agent session.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>The <see cref="AgentSessionInfo"/> for the newly spawned sub-agent.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when the parent is not found, not active, or the maximum nesting depth is exceeded.</exception>
     public async Task<AgentSessionInfo> SpawnSubAgentAsync(
         string parentAgentName,
         AgentCharter charter,
@@ -200,6 +237,9 @@ public sealed class AgentSessionManager : IAgentSessionManager
         return info;
     }
 
+    /// <summary>Gets the immediate sub-agents of a parent agent.</summary>
+    /// <param name="parentAgentName">The name of the parent agent.</param>
+    /// <returns>A read-only list of sub-agent <see cref="AgentSessionInfo"/> instances.</returns>
     public IReadOnlyList<AgentSessionInfo> GetSubAgents(string parentAgentName)
     {
         return _agents.Values
@@ -207,6 +247,9 @@ public sealed class AgentSessionManager : IAgentSessionManager
             .ToList();
     }
 
+    /// <summary>Gets the full agent tree starting from the specified root agent, using depth-first traversal.</summary>
+    /// <param name="rootAgentName">The name of the root agent.</param>
+    /// <returns>A read-only list of all agents in the tree, starting with the root.</returns>
     public IReadOnlyList<AgentSessionInfo> GetAgentTree(string rootAgentName)
     {
         var tree = new List<AgentSessionInfo>();

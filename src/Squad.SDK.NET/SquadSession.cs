@@ -14,16 +14,25 @@ public sealed class SquadSession : ISquadSession
     private readonly ILogger<SquadSession> _logger;
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _toolCallNames = new();
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SquadSession"/> class.
+    /// </summary>
+    /// <param name="session">The underlying <see cref="CopilotSession"/> to wrap.</param>
+    /// <param name="logger">The logger for this session.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="session"/> or <paramref name="logger"/> is <see langword="null"/>.</exception>
     public SquadSession(CopilotSession session, ILogger<SquadSession> logger)
     {
         _session = session ?? throw new ArgumentNullException(nameof(session));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
+    /// <inheritdoc />
     public string SessionId => _session.SessionId;
 
+    /// <inheritdoc />
     public string? WorkspacePath => _session.WorkspacePath;
 
+    /// <inheritdoc />
     public Task<string> SendAsync(SquadMessageOptions options, CancellationToken cancellationToken = default)
     {
         _logger.LogDebug("Sending message to session {SessionId}", SessionId);
@@ -31,6 +40,7 @@ public sealed class SquadSession : ISquadSession
         return _session.SendAsync(sdkOptions, cancellationToken);
     }
 
+    /// <inheritdoc />
     public async Task<string?> SendAndWaitAsync(SquadMessageOptions options, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
     {
         _logger.LogDebug("Sending message to session {SessionId} and waiting for response", SessionId);
@@ -40,20 +50,24 @@ public sealed class SquadSession : ISquadSession
         return response?.Data?.Content;
     }
 
+    /// <inheritdoc />
     public Task AbortAsync(CancellationToken cancellationToken = default)
         => _session.AbortAsync(cancellationToken);
 
+    /// <inheritdoc />
     public async Task<IReadOnlyList<SquadEvent>> GetMessagesAsync(CancellationToken cancellationToken = default)
     {
         var events = await _session.GetMessagesAsync(cancellationToken);
         return events.Select(MapSessionEvent).ToList();
     }
 
+    /// <inheritdoc />
     public IDisposable On(Action<SquadEvent> handler)
     {
         return _session.On(evt => handler(MapSessionEvent(evt)));
     }
 
+    /// <inheritdoc />
     public ValueTask DisposeAsync() => _session.DisposeAsync();
 
     private static MessageOptions MapMessageOptions(SquadMessageOptions options)

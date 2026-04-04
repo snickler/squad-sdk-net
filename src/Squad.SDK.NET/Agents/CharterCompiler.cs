@@ -1,13 +1,22 @@
 namespace Squad.SDK.NET.Agents;
 
+/// <summary>Compiles Markdown charter files into <see cref="AgentCharter"/> instances.</summary>
 public static class CharterCompiler
 {
+    /// <summary>Reads and compiles a single charter file into an <see cref="AgentCharter"/>.</summary>
+    /// <param name="charterPath">The file path to the charter Markdown file.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>The compiled <see cref="AgentCharter"/>.</returns>
     public static async Task<AgentCharter> CompileAsync(string charterPath, CancellationToken cancellationToken = default)
     {
         var content = await File.ReadAllTextAsync(charterPath, cancellationToken);
         return Parse(content);
     }
 
+    /// <summary>Discovers and compiles all <c>charter.md</c> files under the specified team root directory.</summary>
+    /// <param name="teamRoot">The root directory to search for charter files.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>A read-only list of compiled <see cref="AgentCharter"/> instances.</returns>
     public static async Task<IReadOnlyList<AgentCharter>> CompileAllAsync(string teamRoot, CancellationToken cancellationToken = default)
     {
         var charterFiles = Directory.GetFiles(teamRoot, "charter.md", SearchOption.AllDirectories);

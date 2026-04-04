@@ -6,6 +6,15 @@ namespace Squad.SDK.NET.Builder;
 /// <summary>
 /// Fluent entry point for building a <see cref="SquadConfig"/> — equivalent to <c>defineSquad()</c>.
 /// </summary>
+/// <example>
+/// <code>
+/// var config = SquadBuilder.Create()
+///     .WithTeam(t => t.Name("my-team").Description("Demo squad"))
+///     .WithAgent(a => a.Name("coder").Role("Writes code"))
+///     .WithRouting(r => r.DefaultAgent("coder"))
+///     .Build();
+/// </code>
+/// </example>
 public sealed class SquadBuilder
 {
     private TeamConfig? _team;
@@ -21,6 +30,9 @@ public sealed class SquadBuilder
     private BudgetConfig? _budget;
     private HooksDefinition? _hooksDefinition;
 
+    /// <summary>Configures the team definition for this squad.</summary>
+    /// <param name="configure">A delegate that configures the <see cref="TeamBuilder"/>.</param>
+    /// <returns>This builder instance for chaining.</returns>
     public SquadBuilder WithTeam(Action<TeamBuilder> configure)
     {
         var builder = new TeamBuilder();
@@ -29,6 +41,9 @@ public sealed class SquadBuilder
         return this;
     }
 
+    /// <summary>Adds an agent to the squad.</summary>
+    /// <param name="configure">A delegate that configures the <see cref="AgentBuilder"/>.</param>
+    /// <returns>This builder instance for chaining.</returns>
     public SquadBuilder WithAgent(Action<AgentBuilder> configure)
     {
         var builder = new AgentBuilder();
@@ -37,6 +52,9 @@ public sealed class SquadBuilder
         return this;
     }
 
+    /// <summary>Configures message routing rules for the squad.</summary>
+    /// <param name="configure">A delegate that configures the <see cref="RoutingBuilder"/>.</param>
+    /// <returns>This builder instance for chaining.</returns>
     public SquadBuilder WithRouting(Action<RoutingBuilder> configure)
     {
         var builder = new RoutingBuilder();
@@ -45,6 +63,9 @@ public sealed class SquadBuilder
         return this;
     }
 
+    /// <summary>Configures model selection and fallback behavior.</summary>
+    /// <param name="configure">A delegate that configures the <see cref="ModelBuilder"/>.</param>
+    /// <returns>This builder instance for chaining.</returns>
     public SquadBuilder WithModels(Action<ModelBuilder> configure)
     {
         var builder = new ModelBuilder();
@@ -53,6 +74,9 @@ public sealed class SquadBuilder
         return this;
     }
 
+    /// <summary>Configures hooks from an existing <see cref="PolicyConfig"/>.</summary>
+    /// <param name="policy">The policy configuration to apply.</param>
+    /// <returns>This builder instance for chaining.</returns>
     public SquadBuilder WithHooks(PolicyConfig policy)
     {
         _hooks = policy;
@@ -67,6 +91,9 @@ public sealed class SquadBuilder
         return this;
     }
 
+    /// <summary>Configures default settings for all agents in the squad.</summary>
+    /// <param name="configure">A delegate that configures the <see cref="DefaultsBuilder"/>.</param>
+    /// <returns>This builder instance for chaining.</returns>
     public SquadBuilder WithDefaults(Action<DefaultsBuilder> configure)
     {
         var builder = new DefaultsBuilder();
@@ -75,6 +102,9 @@ public sealed class SquadBuilder
         return this;
     }
 
+    /// <summary>Adds a ceremony (e.g., standup, retrospective) to the squad.</summary>
+    /// <param name="configure">A delegate that configures the <see cref="CeremonyBuilder"/>.</param>
+    /// <returns>This builder instance for chaining.</returns>
     public SquadBuilder WithCeremony(Action<CeremonyBuilder> configure)
     {
         var builder = new CeremonyBuilder();
@@ -83,6 +113,9 @@ public sealed class SquadBuilder
         return this;
     }
 
+    /// <summary>Configures agent casting constraints such as capacity limits.</summary>
+    /// <param name="configure">A delegate that configures the <see cref="CastingBuilder"/>.</param>
+    /// <returns>This builder instance for chaining.</returns>
     public SquadBuilder WithCasting(Action<CastingBuilder> configure)
     {
         var builder = new CastingBuilder();
@@ -91,6 +124,9 @@ public sealed class SquadBuilder
         return this;
     }
 
+    /// <summary>Configures telemetry and observability settings.</summary>
+    /// <param name="configure">A delegate that configures the <see cref="TelemetryBuilder"/>.</param>
+    /// <returns>This builder instance for chaining.</returns>
     public SquadBuilder WithTelemetry(Action<TelemetryBuilder> configure)
     {
         var builder = new TelemetryBuilder();
@@ -99,6 +135,9 @@ public sealed class SquadBuilder
         return this;
     }
 
+    /// <summary>Adds a skill definition to the squad.</summary>
+    /// <param name="configure">A delegate that configures the <see cref="SkillBuilder"/>.</param>
+    /// <returns>This builder instance for chaining.</returns>
     public SquadBuilder WithSkill(Action<SkillBuilder> configure)
     {
         var builder = new SkillBuilder();
@@ -107,6 +146,9 @@ public sealed class SquadBuilder
         return this;
     }
 
+    /// <summary>Configures budget constraints for the squad.</summary>
+    /// <param name="configure">A delegate that configures the <see cref="BudgetBuilder"/>.</param>
+    /// <returns>This builder instance for chaining.</returns>
     public SquadBuilder WithBudget(Action<BudgetBuilder> configure)
     {
         var builder = new BudgetBuilder();
@@ -115,6 +157,9 @@ public sealed class SquadBuilder
         return this;
     }
 
+    /// <summary>Configures hooks using the fluent <see cref="HooksBuilder"/>.</summary>
+    /// <param name="configure">A delegate that configures the <see cref="HooksBuilder"/>.</param>
+    /// <returns>This builder instance for chaining.</returns>
     public SquadBuilder WithHooks(Action<HooksBuilder> configure)
     {
         var builder = new HooksBuilder();

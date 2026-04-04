@@ -4,8 +4,21 @@ using Squad.SDK.NET.Events;
 
 namespace Squad.SDK.NET.Coordinator;
 
+/// <summary>
+/// Provides fan-out orchestration to spawn and dispatch messages to multiple agents in parallel.
+/// </summary>
+/// <seealso cref="Coordinator"/>
 public static class FanOut
 {
+    /// <summary>
+    /// Spawns multiple agents in parallel and sends each the same message.
+    /// </summary>
+    /// <param name="agentManager">The agent session manager used to spawn and communicate with agents.</param>
+    /// <param name="charters">The agent charters defining which agents to spawn.</param>
+    /// <param name="message">The message to send to each spawned agent.</param>
+    /// <param name="mode">The response tier controlling the depth of agent processing.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>A combined list of events collected from all spawned agents.</returns>
     public static async Task<IReadOnlyList<SquadEvent>> SpawnParallelAsync(
         IAgentSessionManager agentManager,
         IReadOnlyList<AgentCharter> charters,
@@ -52,6 +65,13 @@ public static class FanOut
     /// <summary>
     /// Spawns multiple sub-agents under a parent agent and sends them all the same message.
     /// </summary>
+    /// <param name="agentManager">The agent session manager used to spawn and communicate with agents.</param>
+    /// <param name="parentAgentName">The name of the parent agent that owns the sub-agents.</param>
+    /// <param name="charters">The agent charters defining which sub-agents to spawn.</param>
+    /// <param name="message">The message to send to each spawned sub-agent.</param>
+    /// <param name="mode">The response tier controlling the depth of agent processing.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>A combined list of events collected from all spawned sub-agents.</returns>
     public static async Task<IReadOnlyList<SquadEvent>> SpawnSubAgentsParallelAsync(
         IAgentSessionManager agentManager,
         string parentAgentName,

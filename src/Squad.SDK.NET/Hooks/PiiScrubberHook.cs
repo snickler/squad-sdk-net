@@ -3,15 +3,27 @@ using Microsoft.Extensions.Logging;
 
 namespace Squad.SDK.NET.Hooks;
 
+/// <summary>
+/// A post-tool-use hook that scrubs personally identifiable information (PII) from tool results using regex patterns.
+/// </summary>
+/// <seealso cref="PostToolUseContext"/>
 public sealed partial class PiiScrubberHook
 {
     private readonly ILogger<PiiScrubberHook> _logger;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PiiScrubberHook"/> class.
+    /// </summary>
+    /// <param name="logger">The logger instance.</param>
     public PiiScrubberHook(ILogger<PiiScrubberHook> logger)
     {
         _logger = logger;
     }
 
+    /// <summary>
+    /// Creates a post-tool-use hook delegate that scrubs PII from string results.
+    /// </summary>
+    /// <returns>A delegate suitable for registration with <see cref="HookPipeline.AddPostToolHook"/>.</returns>
     public Func<PostToolUseContext, Task<PostToolUseResult>> CreateHook()
     {
         return context =>
@@ -35,6 +47,11 @@ public sealed partial class PiiScrubberHook
         };
     }
 
+    /// <summary>
+    /// Replaces email addresses, US phone numbers, and SSN-like patterns in the input with redaction placeholders.
+    /// </summary>
+    /// <param name="input">The string to scrub.</param>
+    /// <returns>The scrubbed string with PII replaced by redaction tokens.</returns>
     public static string ScrubPii(string input)
     {
         // Scrub email addresses

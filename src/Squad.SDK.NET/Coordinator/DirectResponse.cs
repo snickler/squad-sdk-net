@@ -1,5 +1,8 @@
 namespace Squad.SDK.NET.Coordinator;
 
+/// <summary>
+/// Provides pattern-matched direct responses for common conversational messages without routing to agents.
+/// </summary>
 public static class DirectResponse
 {
     private static readonly (string[] Patterns, string Response)[] _mappings =
@@ -12,6 +15,12 @@ public static class DirectResponse
         (["bye", "goodbye", "exit", "quit"], "Goodbye! Come back anytime."),
     ];
 
+    /// <summary>
+    /// Attempts to match the message against known conversational patterns and returns a canned response.
+    /// </summary>
+    /// <param name="message">The user message to evaluate.</param>
+    /// <param name="response">When this method returns <see langword="true"/>, contains the direct response; otherwise, <see langword="null"/>.</param>
+    /// <returns><see langword="true"/> if a direct response was matched; otherwise, <see langword="false"/>.</returns>
     public static bool TryGetDirectResponse(string message, out string? response)
     {
         if (string.IsNullOrWhiteSpace(message))

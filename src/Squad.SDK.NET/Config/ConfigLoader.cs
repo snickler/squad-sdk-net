@@ -2,9 +2,14 @@ using System.Text.Json;
 
 namespace Squad.SDK.NET.Config;
 
+/// <summary>Provides methods for loading and validating <see cref="SquadConfig"/> from JSON files.</summary>
 public static class ConfigLoader
 {
     /// <summary>Loads a <see cref="SquadConfig"/> from a JSON file asynchronously.</summary>
+    /// <param name="filePath">The path to the JSON configuration file.</param>
+    /// <param name="ct">A token to cancel the operation.</param>
+    /// <returns>The deserialized <see cref="SquadConfig"/>.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when deserialization returns <see langword="null"/>.</exception>
     public static async Task<SquadConfig> LoadAsync(string filePath, CancellationToken ct = default)
     {
         await using var stream = File.OpenRead(filePath);
@@ -15,6 +20,9 @@ public static class ConfigLoader
     }
 
     /// <summary>Loads a <see cref="SquadConfig"/> from a JSON file synchronously.</summary>
+    /// <param name="filePath">The path to the JSON configuration file.</param>
+    /// <returns>The deserialized <see cref="SquadConfig"/>.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when deserialization returns <see langword="null"/>.</exception>
     public static SquadConfig LoadSync(string filePath)
     {
         var json = File.ReadAllText(filePath);
@@ -23,6 +31,8 @@ public static class ConfigLoader
     }
 
     /// <summary>Validates a <see cref="SquadConfig"/> and returns a list of validation errors.</summary>
+    /// <param name="config">The configuration to validate.</param>
+    /// <returns>A read-only list of validation error messages; empty if valid.</returns>
     public static IReadOnlyList<string> Validate(SquadConfig config)
     {
         var errors = new List<string>();

@@ -2,6 +2,9 @@ using System.Collections.Concurrent;
 
 namespace Squad.SDK.NET.Runtime;
 
+/// <summary>
+/// Tracks token usage and estimated costs per model and session.
+/// </summary>
 public sealed class CostTracker
 {
     private readonly ConcurrentDictionary<string, ModelUsage> _usageByModel = new();
@@ -16,6 +19,13 @@ public sealed class CostTracker
         [Constants.Models.ClaudeHaiku] = (0.80m,   4.00m),
     };
 
+    /// <summary>
+    /// Records token usage for the specified model and session.
+    /// </summary>
+    /// <param name="model">The model identifier (e.g., <see cref="Constants.Models.Gpt5"/>).</param>
+    /// <param name="sessionId">The session that consumed the tokens.</param>
+    /// <param name="inputTokens">Number of input (prompt) tokens used.</param>
+    /// <param name="outputTokens">Number of output (completion) tokens used.</param>
     public void RecordUsage(string model, string sessionId, int inputTokens, int outputTokens)
     {
         var cost = EstimateCost(model, inputTokens, outputTokens);
@@ -55,6 +65,13 @@ public sealed class CostTracker
             });
     }
 
+    /// <summary>
+    /// Estimates the cost in USD for the given token counts and model.
+    /// </summary>
+    /// <param name="model">The model identifier.</param>
+    /// <param name="inputTokens">Number of input tokens.</param>
+    /// <param name="outputTokens">Number of output tokens.</param>
+    /// <returns>Estimated cost in USD, or <c>0</c> if the model is unknown.</returns>
     public decimal EstimateCost(string model, int inputTokens, int outputTokens)
     {
         if (!ModelPricing.TryGetValue(model, out var pricing))
@@ -64,16 +81,24 @@ public sealed class CostTracker
              + pricing.Output * outputTokens / 1_000_000m;
     }
 
+    /// <summary>Returns aggregated usage for the specified model.</summary>
+    /// <param name="model">The model identifier.</param>
+    /// <returns>A <see cref="ModelUsage"/> snapshot; zeroed if no usage has been recorded.</returns>
     public ModelUsage GetModelUsage(string model) =>
         _usageByModel.TryGetValue(model, out var usage)
             ? usage
             : new ModelUsage { Model = model };
 
+    /// <summary>Returns aggregated usage for the specified session.</summary>
+    /// <param name="sessionId">The session identifier.</param>
+    /// <returns>A <see cref="SessionUsage"/> snapshot; zeroed if no usage has been recorded.</returns>
     public SessionUsage GetSessionUsage(string sessionId) =>
         _usageBySession.TryGetValue(sessionId, out var usage)
             ? usage
             : new SessionUsage { SessionId = sessionId };
 
+    /// <summary>Returns a summary of all tracked usage broken down by model and session.</summary>
+    /// <returns>A <see cref="CostSummary"/> containing totals and per-model/session breakdowns.</returns>
     public CostSummary GetTotalSummary()
     {
         var byModel = _usageByModel.ToDictionary(kv => kv.Key, kv => kv.Value);
@@ -99,28 +124,51 @@ public sealed class CostTracker
     }
 }
 
+/// <summary>
+/// Aggregated token usage and cost for a single model.
+/// </summary>
 public sealed record ModelUsage
 {
+    /// <summary>Gets the model identifier.</summary>
     public required string Model { get; init; }
+    /// <summary>Gets the total number of input tokens consumed.</summary>
     public int TotalInputTokens { get; init; }
+    /// <summary>Gets the total number of output tokens produced.</summary>
     public int TotalOutputTokens { get; init; }
+    /// <summary>Gets the estimated cost in USD.</summary>
     public decimal EstimatedCost { get; init; }
+    /// <summary>Gets the number of requests made to this model.</summary>
     public int RequestCount { get; init; }
 }
 
+/// <summary>
+/// Aggregated token usage and cost for a single session.
+/// </summary>
 public sealed record SessionUsage
 {
+    /// <summary>Gets the session identifier.</summary>
     public required string SessionId { get; init; }
+    /// <summary>Gets the total number of input tokens consumed.</summary>
     public int TotalInputTokens { get; init; }
+    /// <summary>Gets the total number of output tokens produced.</summary>
     public int TotalOutputTokens { get; init; }
+    /// <summary>Gets the estimated cost in USD.</summary>
     public decimal EstimatedCost { get; init; }
 }
 
+/// <summary>
+/// Overall cost summary with per-model and per-session breakdowns.
+/// </summary>
 public sealed record CostSummary
 {
+    /// <summary>Gets the total number of input tokens across all models.</summary>
     public int TotalInputTokens { get; init; }
+    /// <summary>Gets the total number of output tokens across all models.</summary>
     public int TotalOutputTokens { get; init; }
+    /// <summary>Gets the total estimated cost in USD across all models.</summary>
     public decimal TotalEstimatedCost { get; init; }
+    /// <summary>Gets usage broken down by model identifier.</summary>
     public IReadOnlyDictionary<string, ModelUsage> ByModel { get; init; } = new Dictionary<string, ModelUsage>();
+    /// <summary>Gets usage broken down by session identifier.</summary>
     public IReadOnlyDictionary<string, SessionUsage> BySession { get; init; } = new Dictionary<string, SessionUsage>();
 }

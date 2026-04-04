@@ -6,6 +6,11 @@ using Squad.SDK.NET.Events;
 
 namespace Squad.SDK.NET.Coordinator;
 
+/// <summary>
+/// Routes incoming messages to the appropriate agents based on configured routing rules.
+/// </summary>
+/// <seealso cref="RoutingDecision"/>
+/// <seealso cref="ResponseTier"/>
 public sealed class Coordinator : ICoordinator
 {
     private readonly SquadConfig _config;
@@ -14,6 +19,14 @@ public sealed class Coordinator : ICoordinator
     private readonly ILogger<Coordinator> _logger;
     private IReadOnlyList<RoutingRule> _rules = [];
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="Coordinator"/> class.
+    /// </summary>
+    /// <param name="config">The squad configuration containing routing rules.</param>
+    /// <param name="agentManager">The agent session manager for dispatching work to agents.</param>
+    /// <param name="eventBus">The event bus for publishing routing events.</param>
+    /// <param name="logger">The logger instance.</param>
+    /// <exception cref="ArgumentNullException">Thrown when any parameter is <see langword="null"/>.</exception>
     public Coordinator(SquadConfig config, IAgentSessionManager agentManager, IEventBus eventBus, ILogger<Coordinator> logger)
     {
         _config = config ?? throw new ArgumentNullException(nameof(config));
@@ -22,12 +35,14 @@ public sealed class Coordinator : ICoordinator
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
+    /// <inheritdoc />
     public Task InitializeAsync(CancellationToken cancellationToken = default)
     {
         _rules = _config.Routing?.Rules ?? [];
         return Task.CompletedTask;
     }
 
+    /// <inheritdoc />
     public async Task<RoutingDecision> RouteAsync(string message, CancellationToken cancellationToken = default)
     {
         var normalized = message.ToLowerInvariant();
@@ -67,6 +82,7 @@ public sealed class Coordinator : ICoordinator
         return decision;
     }
 
+    /// <inheritdoc />
     public async Task ExecuteAsync(RoutingDecision decision, string message, CancellationToken cancellationToken = default)
     {
         var options = new SquadMessageOptions { Prompt = message };
@@ -106,6 +122,7 @@ public sealed class Coordinator : ICoordinator
         }
     }
 
+    /// <inheritdoc />
     public Task ShutdownAsync(CancellationToken cancellationToken = default)
     {
         _rules = [];
