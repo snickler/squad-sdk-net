@@ -341,4 +341,4 @@ dotnet test Squad.SDK.NET.Tests
 
 ## License
 
-See root `LICENSE` file in the Skyflow repository for licensing details.
+See the root `LICENSE` file for licensing details.

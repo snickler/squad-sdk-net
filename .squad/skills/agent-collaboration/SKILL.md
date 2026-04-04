@@ -3,7 +3,7 @@ name: agent-collaboration
 description: Multi-agent collaboration patterns for Squad members
 domain: team-collaboration
 confidence: high
-source: inherited from Skyflow project
+source: established for Squad.SDK.NET
 ---
 
 ## Patterns

@@ -47,7 +47,7 @@ public static class ServiceCollectionExtensions
                 var logger = sp.GetRequiredService<ILogger<FileSystemStorageProvider>>();
                 var path = storagePath ?? Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "Skyflow", "squad-storage");
+                    "Squad", "squad-storage");
                 return new FileSystemStorageProvider(path, logger);
             });
         }

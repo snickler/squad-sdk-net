@@ -4,9 +4,9 @@ public static class DirectResponse
 {
     private static readonly (string[] Patterns, string Response)[] _mappings =
     [
-        (["hello", "hi", "hey", "greetings"], "Hello! I'm Skyflow, your AI development squad. How can I help you today?"),
+        (["hello", "hi", "hey", "greetings"], "Hello! I'm Squad, your AI development team. How can I help you today?"),
         (["help", "what can you do", "capabilities", "commands"], "I can help you with feature development, bug fixes, testing, documentation, refactoring, architecture, and research tasks. Just describe what you need!"),
-        (["version", "what version"], "Skyflow Squad SDK v1.0 — powered by GitHub Copilot multi-agent orchestration."),
+        (["version", "what version"], "Squad SDK v1.0 — powered by GitHub Copilot multi-agent orchestration."),
         (["status", "health", "ping"], "Squad is online and ready."),
         (["thanks", "thank you", "ty", "cheers"], "You're welcome! Let me know if there's anything else I can help with."),
         (["bye", "goodbye", "exit", "quit"], "Goodbye! Come back anytime."),

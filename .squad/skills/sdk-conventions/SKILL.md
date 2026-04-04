@@ -3,7 +3,7 @@ name: sdk-conventions
 description: Squad.SDK.NET codebase conventions — sealed records, source-gen JSON, AOT-safe, no reflection
 domain: coding-standards
 confidence: high
-source: established during SDK creation from Skyflow project
+source: established for Squad.SDK.NET
 ---
 
 ## Context

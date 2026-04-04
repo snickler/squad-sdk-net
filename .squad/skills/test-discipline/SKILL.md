@@ -3,7 +3,7 @@ name: test-discipline
 description: API changes require test updates in the same commit
 domain: testing
 confidence: high
-source: inherited from Skyflow project
+source: established for Squad.SDK.NET
 ---
 
 ## Rule

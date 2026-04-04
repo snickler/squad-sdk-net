@@ -3,7 +3,7 @@ name: git-workflow
 description: Git branching and workflow conventions for Squad.SDK.NET
 domain: version-control
 confidence: high
-source: adapted from Skyflow project
+source: established for Squad.SDK.NET
 ---
 
 ## Branch Model

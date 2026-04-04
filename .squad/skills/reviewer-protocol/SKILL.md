@@ -3,7 +3,7 @@ name: reviewer-protocol
 description: Strict review lockout and deadlock escalation protocol
 domain: code-review
 confidence: high
-source: inherited from Skyflow project
+source: established for Squad.SDK.NET
 ---
 
 ## Protocol

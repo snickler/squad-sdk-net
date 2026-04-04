@@ -45,4 +45,4 @@
 - **Structure:** `src/Squad.SDK.NET/`, `tests/Squad.SDK.NET.Tests/`
 - **Universe:** The Expanse
 - **Created:** 2026-04-04
-- **Origin:** Extracted from Skyflow project (snickler/Skyflow)
+- **Origin:** Squad.SDK.NET

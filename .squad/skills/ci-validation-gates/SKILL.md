@@ -3,7 +3,7 @@ name: ci-validation-gates
 description: Defensive CI/CD patterns for NuGet publishing and .NET builds
 domain: ci-cd
 confidence: high
-source: adapted from Skyflow project
+source: established for Squad.SDK.NET
 ---
 
 ## Context

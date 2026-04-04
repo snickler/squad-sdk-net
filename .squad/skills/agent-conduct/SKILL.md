@@ -3,7 +3,7 @@ name: agent-conduct
 description: Hard rules for agent behavior — no exceptions
 domain: team-collaboration
 confidence: high
-source: inherited from Skyflow project
+source: established for Squad.SDK.NET
 ---
 
 ## Hard Rules

@@ -3,7 +3,7 @@ name: history-hygiene
 description: Record final outcomes to history.md, not intermediate requests or reversed decisions
 domain: documentation, team-collaboration
 confidence: high
-source: earned (inherited from Skyflow project)
+source: established for Squad.SDK.NET
 ---
 
 ## Context

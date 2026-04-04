@@ -3,7 +3,7 @@
 **Project:** Squad.SDK.NET  
 **Purpose:** A .NET SDK for building multi-agent orchestration systems  
 **Owner:** Jeremy Sinclair  
-**Origin:** Extracted from Skyflow project (snickler/Skyflow)  
+**Origin:** Squad.SDK.NET  
 **Universe:** The Expanse  
 **Created:** 2026-04-04  
 

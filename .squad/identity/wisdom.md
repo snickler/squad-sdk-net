@@ -2,7 +2,7 @@
 
 > Lessons learned, patterns discovered, truths earned.
 
-## Founding Wisdom (inherited from Skyflow)
+## Founding Wisdom
 
 1. **Sealed records are the default.** Mutable classes are the exception.
 2. **Source-gen JSON everywhere.** No reflection-based serialization survives AOT.
