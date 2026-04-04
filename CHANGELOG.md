@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Initial release of Squad.SDK.NET
-- Fluent builder API for squad configuration
+- Fluent builder API for squad configuration with immutable built configs
 - Coordinator with intelligent routing and fan-out
 - Event bus (pub/sub) via System.Threading.Channels
 - Pre/post tool-use hook pipeline for governance
@@ -19,8 +19,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Skill registry and loader
 - Platform detection (OS, terminal, IDE)
 - Import/export for portable squad configurations
+- RemoteBridge with IAsyncDisposable for proper resource cleanup
 - Full AOT / Native AOT compatibility
-- Source-generated JSON serialization
+- Source-generated JSON serialization (4 contexts)
 - Microsoft.Extensions.DependencyInjection integration
+- SourceLink and symbol packages for source-level debugging
+- Deterministic builds with TreatWarningsAsErrors
 - Comprehensive XML documentation on all public APIs
 - 474+ unit tests across 20+ test classes
+
+### Infrastructure
+- Multi-OS CI matrix (Ubuntu + Windows) with code coverage
+- Tag-driven release workflow with SemVer validation
+- Build provenance attestation for supply-chain security
+- CodeQL security scanning (weekly + on PR)
+- Dependency review on pull requests
+- CODEOWNERS for required review enforcement
+- NuGet package metadata (ready for publishing)
+- Community files (CONTRIBUTING, SECURITY, issue/PR templates)

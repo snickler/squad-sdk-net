@@ -59,6 +59,26 @@ dotnet test
 - All bug fixes should include a regression test
 - Tests use xUnit — place them in the `tests/` directory
 
+## Versioning
+
+This project follows [Semantic Versioning 2.0](https://semver.org/). See [VERSIONING.md](VERSIONING.md) for the full versioning policy, pre-release conventions, and the release process.
+
+### Creating a Release
+
+1. Update `<Version>` in `src/Squad.SDK.NET/Squad.SDK.NET.csproj`
+2. Update `CHANGELOG.md` with release notes
+3. Merge to `main`
+4. Tag the merge commit: `git tag v0.2.0 && git push origin v0.2.0`
+5. The [release workflow](.github/workflows/release.yml) handles the rest
+
+## Security
+
+Please report vulnerabilities privately — see [SECURITY.md](SECURITY.md) for details.
+
+All pull requests are scanned by:
+- **CodeQL** — static analysis for security vulnerabilities
+- **Dependency Review** — flags high-severity vulnerabilities and restrictive licenses
+
 ## Code of Conduct
 
 Be respectful and constructive. We're all here to build something great together.

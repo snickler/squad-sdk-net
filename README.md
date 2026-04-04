@@ -53,10 +53,16 @@ squad-sdk-net/
 ├── .github/
 │   ├── ISSUE_TEMPLATE/         # Bug report & feature request templates
 │   ├── PULL_REQUEST_TEMPLATE.md
-│   └── workflows/ci.yml        # CI (multi-OS matrix, coverage, pack)
+│   ├── workflows/
+│   │   ├── ci.yml              # CI (multi-OS matrix, coverage, pack)
+│   │   ├── codeql.yml          # CodeQL security scanning
+│   │   ├── dependency-review.yml # Dependency vulnerability review
+│   │   └── release.yml         # Tag-driven release + NuGet publish
 ├── CHANGELOG.md                # Release notes
+├── CODEOWNERS                  # Required reviewers
 ├── CONTRIBUTING.md             # Contribution guide
 ├── SECURITY.md                 # Vulnerability reporting policy
+├── VERSIONING.md               # Versioning scheme and release process
 ├── Squad.SDK.NET.slnx          # Solution file
 ├── Directory.Build.props       # Shared build properties (SourceLink, warnings-as-errors)
 ├── Directory.Packages.props    # Central package management
@@ -77,6 +83,18 @@ squad-sdk-net/
 - **Symbol packages** (`.snupkg`) for source-level debugging
 - **TreatWarningsAsErrors** — zero tolerance for compiler warnings
 - **CI matrix** — builds and tests on both Ubuntu and Windows
+- **Tag-driven releases** — push a `v*` tag to create a GitHub Release with NuGet packages
+- **Build provenance** — attestation via `actions/attest-build-provenance` for supply-chain security
+
+See [VERSIONING.md](VERSIONING.md) for the versioning scheme and release process.
+
+## Security
+
+- **CodeQL** scans on every PR and weekly for C# vulnerabilities
+- **Dependency review** flags high-severity CVEs and restrictive licenses on PRs
+- **CODEOWNERS** requires review from [@snickler](https://github.com/snickler)
+
+Report vulnerabilities privately — see [SECURITY.md](SECURITY.md).
 
 ## Contributing
 
