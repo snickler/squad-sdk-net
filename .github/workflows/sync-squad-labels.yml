@@ -103,6 +103,12 @@ jobs:
               { name: 'priority:p2', color: 'FBCA04', description: 'Next sprint' }
             ];
 
+            const DEPENDENCY_LABELS = [
+              { name: 'dependencies', color: '0075CA', description: 'Dependency updates' },
+              { name: 'CI', color: 'E4E669', description: 'CI/CD related changes' },
+              { name: '.NET', color: '512BD4', description: '.NET / NuGet dependency updates' }
+            ];
+
             // Ensure the base "squad" triage label exists
             const labels = [
               { name: 'squad', color: SQUAD_COLOR, description: 'Squad triage inbox — Lead will assign to a member' }
@@ -125,12 +131,13 @@ jobs:
               });
             }
 
-            // Add go:, release:, type:, priority:, and high-signal labels
+            // Add go:, release:, type:, priority:, high-signal, and dependency labels
             labels.push(...GO_LABELS);
             labels.push(...RELEASE_LABELS);
             labels.push(...TYPE_LABELS);
             labels.push(...PRIORITY_LABELS);
             labels.push(...SIGNAL_LABELS);
+            labels.push(...DEPENDENCY_LABELS);
 
             // Sync labels (create or update)
             for (const label of labels) {
