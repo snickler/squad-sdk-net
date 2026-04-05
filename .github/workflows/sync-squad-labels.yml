@@ -103,6 +103,11 @@ jobs:
               { name: 'priority:p2', color: 'FBCA04', description: 'Next sprint' }
             ];
 
+            const DEPENDENCY_LABELS = [
+              { name: 'dependencies', color: '0075ca', description: 'Pull requests that update a dependency file' },
+              { name: 'CI', color: 'e4e669', description: 'Pull requests that update CI configuration' }
+            ];
+
             // Ensure the base "squad" triage label exists
             const labels = [
               { name: 'squad', color: SQUAD_COLOR, description: 'Squad triage inbox — Lead will assign to a member' }
@@ -125,11 +130,12 @@ jobs:
               });
             }
 
-            // Add go:, release:, type:, priority:, and high-signal labels
+            // Add go:, release:, type:, priority:, CI/dependency, and high-signal labels
             labels.push(...GO_LABELS);
             labels.push(...RELEASE_LABELS);
             labels.push(...TYPE_LABELS);
             labels.push(...PRIORITY_LABELS);
+            labels.push(...DEPENDENCY_LABELS);
             labels.push(...SIGNAL_LABELS);
 
             // Sync labels (create or update)
