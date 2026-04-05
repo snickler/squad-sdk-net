@@ -1,0 +1,74 @@
+{
+  "agents": [
+    {
+      "name": "Holden",
+      "character": "James Holden",
+      "universe": "The Expanse",
+      "role": "Lead .NET Architect",
+      "tier": "team-lead",
+      "status": "active",
+      "spawned": "2026-04-04",
+      "charter": ".squad/agents/holden/charter.md"
+    },
+    {
+      "name": "Fred",
+      "character": "Fred Johnson",
+      "universe": "The Expanse",
+      "role": "Director of Engineering",
+      "tier": "director",
+      "status": "active",
+      "spawned": "2026-04-04",
+      "charter": ".squad/agents/fred/charter.md"
+    },
+    {
+      "name": "Ashford",
+      "character": "Klaes Ashford",
+      "universe": "The Expanse",
+      "role": "Director of Platform & DevOps",
+      "tier": "director",
+      "status": "active",
+      "spawned": "2026-04-04",
+      "charter": ".squad/agents/ashford/charter.md"
+    },
+    {
+      "name": "Dawes",
+      "character": "Anderson Dawes",
+      "universe": "The Expanse",
+      "role": "Director of Developer Relations",
+      "tier": "director",
+      "status": "active",
+      "spawned": "2026-04-04",
+      "charter": ".squad/agents/dawes/charter.md"
+    },
+    {
+      "name": "Drummer",
+      "character": "Camina Drummer",
+      "universe": "The Expanse",
+      "role": "Tester & QA",
+      "tier": "ic",
+      "status": "active",
+      "spawned": "2026-04-04",
+      "charter": ".squad/agents/drummer/charter.md"
+    },
+    {
+      "name": "Scribe",
+      "character": "Scribe (Observer)",
+      "universe": "The Expanse",
+      "role": "Session Logger",
+      "tier": "silent",
+      "status": "active",
+      "spawned": "2026-04-04",
+      "charter": ".squad/agents/scribe/charter.md"
+    },
+    {
+      "name": "Ralph",
+      "character": "Ralph (Monitor)",
+      "universe": "The Expanse",
+      "role": "Work Monitor",
+      "tier": "silent",
+      "status": "active",
+      "spawned": "2026-04-04",
+      "charter": ".squad/agents/ralph/charter.md"
+    }
+  ]
+}

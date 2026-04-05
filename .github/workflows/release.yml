@@ -1,0 +1,115 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate release tag
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      is-prerelease: ${{ steps.version.outputs.is-prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract and validate version
+        id: version
+        run: |
+          TAG="${GITHUB_REF#refs/tags/v}"
+
+          if [[ ! "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
+            echo "::error::Tag 'v$TAG' does not match SemVer format (MAJOR.MINOR.PATCH[-PRERELEASE])"
+            exit 1
+          fi
+
+          if [[ "$TAG" == *-* ]]; then
+            echo "is-prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is-prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "version=$TAG" >> "$GITHUB_OUTPUT"
+          echo "✅ Version: $TAG"
+
+      - name: Verify tag is on main
+        run: |
+          git fetch origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::Tagged commit ($GITHUB_SHA) is not reachable from main. Tags must point to commits on the main branch."
+            exit 1
+          fi
+          echo "✅ Tag is on main"
+
+      - name: Verify tag matches csproj version
+        run: |
+          CSPROJ_VERSION=$(grep -oP '(?<=<Version>)[^<]+' src/Squad.SDK.NET/Squad.SDK.NET.csproj)
+          TAG_VERSION="${GITHUB_REF#refs/tags/v}"
+
+          if [ "$TAG_VERSION" != "$CSPROJ_VERSION" ]; then
+            echo "::error::Tag version ($TAG_VERSION) does not match csproj version ($CSPROJ_VERSION). Update <Version> in Squad.SDK.NET.csproj first."
+            exit 1
+          fi
+          echo "✅ Tag matches csproj ($CSPROJ_VERSION)"
+
+  release:
+    name: Build, pack, and release
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore Squad.SDK.NET.slnx
+
+      - name: Build
+        run: dotnet build Squad.SDK.NET.slnx --no-restore -c Release
+
+      - name: Test
+        run: dotnet test Squad.SDK.NET.slnx --no-build -c Release --verbosity normal
+
+      - name: Pack
+        run: dotnet pack src/Squad.SDK.NET/Squad.SDK.NET.csproj --no-build -c Release -o ./artifacts
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: './artifacts/*.nupkg'
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          prerelease: ${{ needs.validate.outputs.is-prerelease == 'true' }}
+          files: |
+            ./artifacts/*.nupkg
+            ./artifacts/*.snupkg
+
+      - name: Publish to NuGet.org
+        if: vars.NUGET_PUBLISH_ENABLED == 'true'
+        run: |
+          dotnet nuget push ./artifacts/*.nupkg \
+            --api-key "${{ secrets.NUGET_API_KEY }}" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate

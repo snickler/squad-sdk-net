@@ -1,0 +1,20 @@
+{
+  "allowed_universes": [
+    { "name": "The Expanse", "source": "TV / Books", "capacity": 20 },
+    { "name": "Star Trek", "source": "TV / Film", "capacity": 10 },
+    { "name": "Dune", "source": "Books / Film", "capacity": 10 },
+    { "name": "Battlestar Galactica", "source": "TV", "capacity": 10 },
+    { "name": "Foundation", "source": "Books / TV", "capacity": 10 },
+    { "name": "Mass Effect", "source": "Video Game", "capacity": 10 },
+    { "name": "Halo", "source": "Video Game / TV", "capacity": 10 },
+    { "name": "Blade Runner", "source": "Film", "capacity": 5 },
+    { "name": "Alien", "source": "Film", "capacity": 5 },
+    { "name": "Westworld", "source": "TV", "capacity": 5 },
+    { "name": "Ghost in the Shell", "source": "Anime / Film", "capacity": 5 },
+    { "name": "Cowboy Bebop", "source": "Anime", "capacity": 5 },
+    { "name": "Cyberpunk", "source": "Video Game / Anime", "capacity": 5 },
+    { "name": "Stargate", "source": "TV / Film", "capacity": 5 },
+    { "name": "The Matrix", "source": "Film", "capacity": 5 },
+    { "name": "Sengoku Era", "source": "History", "capacity": 10 }
+  ]
+}
