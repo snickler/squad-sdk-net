@@ -5,6 +5,7 @@ on:
     paths:
       - '.squad/team.md'
       - '.ai-team/team.md'
+      - '.github/dependabot.yml'
   workflow_dispatch:
 
 permissions:
@@ -103,6 +104,12 @@ jobs:
               { name: 'priority:p2', color: 'FBCA04', description: 'Next sprint' }
             ];
 
+            const DEPENDABOT_LABELS = [
+              { name: 'dependencies', color: '0075CA', description: 'Pull requests that update a dependency file' },
+              { name: '.NET', color: '512BD4', description: 'Pull requests that update .NET dependencies' },
+              { name: 'CI', color: 'E4E669', description: 'Pull requests that update CI/CD configuration' }
+            ];
+
             // Ensure the base "squad" triage label exists
             const labels = [
               { name: 'squad', color: SQUAD_COLOR, description: 'Squad triage inbox — Lead will assign to a member' }
@@ -125,12 +132,13 @@ jobs:
               });
             }
 
-            // Add go:, release:, type:, priority:, and high-signal labels
+            // Add go:, release:, type:, priority:, high-signal, and dependabot labels
             labels.push(...GO_LABELS);
             labels.push(...RELEASE_LABELS);
             labels.push(...TYPE_LABELS);
             labels.push(...PRIORITY_LABELS);
             labels.push(...SIGNAL_LABELS);
+            labels.push(...DEPENDABOT_LABELS);
 
             // Sync labels (create or update)
             for (const label of labels) {
