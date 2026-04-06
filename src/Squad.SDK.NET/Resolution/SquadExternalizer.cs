@@ -256,10 +256,11 @@ public static class SquadExternalizer
         var existing = File.Exists(gitignorePath) ? File.ReadAllText(gitignorePath) : "";
         if (!existing.Contains(entry))
         {
-            var sep = (existing.Length > 0 && !existing.EndsWith('\n')) ? Environment.NewLine : "";
+            // Normalize: ensure we start on a new line regardless of CRLF/LF conventions
+            var sep = (existing.Length > 0 && !existing.EndsWith('\n') && !existing.EndsWith('\r')) ? "\n" : "";
             var block = sep
-                + "# Squad: local config (machine-specific, never commit)" + Environment.NewLine
-                + entry + Environment.NewLine;
+                + "# Squad: local config (machine-specific, never commit)\n"
+                + entry + "\n";
             File.AppendAllText(gitignorePath, block);
         }
     }
