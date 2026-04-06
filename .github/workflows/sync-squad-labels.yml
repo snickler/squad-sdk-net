@@ -106,7 +106,7 @@ jobs:
             const SYNC_LABELS = [
               { name: 'sync', color: 'F9D0C4', description: 'Upstream sync tracking' },
               { name: 'sync:dev', color: 'FEF2C0', description: 'Changes on upstream dev branch' },
-              { name: 'sync:insiders', color: 'C2E0C6', description: 'Changes on upstream insiders branch' }
+              { name: 'sync:insider', color: 'C2E0C6', description: 'Changes on upstream insider branch' }
             ];
 
             // Ensure the base "squad" triage label exists

@@ -1,5 +1,16 @@
 ## Learnings
 
+### Upstream Sync Strategy (2025-04)
+
+- Analyzed upstream `bradygaster/squad` on `dev` and `main` branches to define sync strategy for .NET port
+- **Key finding:** The upstream branch is called `insider` (singular); along with `main` (stable, published) and `dev` (active development)
+- **On `dev` vs `main`:** Ralph's watch mode (autonomous polling), SDK-first builder API, state backends, marketplace, enhanced CLI (17 commands total), interactive shell
+- **Sync philosophy:** Port architecture & API surface alignment, not implementation details. We write idiomatic C#, not copied TS code
+- **Recommended cadence:** Monthly first-working-day review. Fast-track quarterly reviews on major releases
+- **Label strategy:** `sync:upstream` (primary), plus specificity labels: `sync:api`, `sync:feature`, `sync:watch-mode`, `sync:cli`, `sync:patterns`, `sync:decision-required`
+- **Success metric:** Feature parity for user-facing capabilities; implementation method is free (C# idioms preferred)
+- **Decision recorded:** `.squad/decisions/inbox/holden-upstream-sync-strategy.md`
+
 ### AOT Readiness Audit (2025)
 
 - **ConfigLoader.cs** was the sole AOT violation — used reflection-based `JsonSerializerOptions` with `JsonStringEnumConverter`. Replaced with dedicated `ConfigJsonContext` source-gen context.

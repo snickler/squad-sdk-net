@@ -1,4 +1,4 @@
-name: "Sync Check: insiders"
+name: "Sync Check: insider"
 
 on:
   schedule:
@@ -6,16 +6,16 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: sync-check-insiders
+  group: sync-check-insider
   cancel-in-progress: true
 
 jobs:
-  sync-insiders:
+  sync-insider:
     uses: ./.github/workflows/sync-check.yml
     with:
       upstream-repo: 'bradygaster/squad'
-      upstream-branch: 'insiders'
-      sync-label: 'sync:insiders'
+      upstream-branch: 'insider'
+      sync-label: 'sync:insider'
     permissions:
       issues: write
       contents: read

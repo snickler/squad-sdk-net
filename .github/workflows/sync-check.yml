@@ -201,7 +201,7 @@ jobs:
             const labelDefs = {
               'sync':          { color: 'F9D0C4', description: 'Upstream sync tracking' },
               'sync:dev':      { color: 'FEF2C0', description: 'Changes on upstream dev branch' },
-              'sync:insiders': { color: 'C2E0C6', description: 'Changes on upstream insiders branch' },
+              'sync:insider': { color: 'C2E0C6', description: 'Changes on upstream insider branch' },
               'squad':         { color: '9B8FCC', description: 'Squad triage inbox' },
             };
 
