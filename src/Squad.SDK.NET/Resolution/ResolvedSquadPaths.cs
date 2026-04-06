@@ -45,4 +45,14 @@ public sealed record SquadDirConfig
     public string? ProjectKey { get; init; }
     /// <summary>Gets a value indicating whether skill extraction is disabled.</summary>
     public bool ExtractionDisabled { get; init; }
+    /// <summary>
+    /// Gets where state is stored. <c>"external"</c> means state has been moved outside the working tree.
+    /// When <see langword="null"/>, state is stored locally (default behavior).
+    /// </summary>
+    public string? StateLocation { get; init; }
+    /// <summary>
+    /// Gets the state storage backend identifier (e.g. <c>"worktree"</c>, <c>"external"</c>,
+    /// <c>"git-notes"</c>, <c>"orphan"</c>). When <see langword="null"/>, the default local backend is used.
+    /// </summary>
+    public string? StateBackend { get; init; }
 }

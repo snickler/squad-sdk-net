@@ -7,6 +7,8 @@ public enum PlatformType
     GitHub,
     /// <summary>Azure DevOps-hosted repository.</summary>
     AzureDevOps,
+    /// <summary>Microsoft Planner task board.</summary>
+    Planner,
     /// <summary>Local git repository without a recognized remote.</summary>
     Local,
     /// <summary>Platform could not be determined.</summary>
