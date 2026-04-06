@@ -1,0 +1,21 @@
+name: "Sync Check: insiders"
+
+on:
+  schedule:
+    - cron: '0 8 * * 1-5'   # Weekdays at 08:00 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: sync-check-insiders
+  cancel-in-progress: true
+
+jobs:
+  sync-insiders:
+    uses: ./.github/workflows/sync-check.yml
+    with:
+      upstream-repo: 'bradygaster/squad'
+      upstream-branch: 'insiders'
+      sync-label: 'sync:insiders'
+    permissions:
+      issues: write
+      contents: read
