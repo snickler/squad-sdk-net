@@ -45,4 +45,10 @@ public sealed record SquadDirConfig
     public string? ProjectKey { get; init; }
     /// <summary>Gets a value indicating whether skill extraction is disabled.</summary>
     public bool ExtractionDisabled { get; init; }
+    /// <summary>Gets a value indicating whether this is a consult mode session (personal squad consulting on an external project).</summary>
+    public bool Consult { get; init; }
+    /// <summary>Gets the state location. Set to <c>"external"</c> when state has been moved out of the working tree.</summary>
+    public string? StateLocation { get; init; }
+    /// <summary>Gets the state storage backend: <c>worktree</c>, <c>external</c>, <c>git-notes</c>, or <c>orphan</c>.</summary>
+    public string? StateBackend { get; init; }
 }

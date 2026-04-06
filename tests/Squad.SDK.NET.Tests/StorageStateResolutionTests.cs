@@ -970,3 +970,275 @@ public sealed class MultiSquadManagerTests : IDisposable
 }
 
 #endregion
+
+#region Resolution — SquadResolver scratch & external-state methods
+
+public sealed class SquadResolverScratchAndExternalTests
+{
+    [Fact]
+    public void ScratchDir_CreateTrue_CreatesAndReturnsPath()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), $"squad-scratch-{Guid.NewGuid():N}");
+        var squadDir = Path.Combine(tempRoot, ".squad");
+        Directory.CreateDirectory(squadDir);
+        try
+        {
+            var result = SquadResolver.ScratchDir(squadDir, create: true);
+
+            Assert.True(Directory.Exists(result));
+            Assert.Equal(Path.Combine(squadDir, SquadResolver.ScratchDirName), result);
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ScratchDir_CreateFalse_ReturnsPathWithoutCreating()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), $"squad-scratch-nc-{Guid.NewGuid():N}");
+        var squadDir = Path.Combine(tempRoot, ".squad");
+        Directory.CreateDirectory(squadDir);
+        try
+        {
+            var result = SquadResolver.ScratchDir(squadDir, create: false);
+
+            Assert.False(Directory.Exists(result));
+            Assert.Equal(Path.Combine(squadDir, SquadResolver.ScratchDirName), result);
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ScratchFile_CreatesFileInScratchDir()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), $"squad-sfile-{Guid.NewGuid():N}");
+        var squadDir = Path.Combine(tempRoot, ".squad");
+        Directory.CreateDirectory(squadDir);
+        try
+        {
+            var filePath = SquadResolver.ScratchFile(squadDir, "test-prefix", ".txt", "hello");
+
+            Assert.True(File.Exists(filePath));
+            Assert.Equal("hello", File.ReadAllText(filePath));
+            Assert.StartsWith(Path.Combine(squadDir, SquadResolver.ScratchDirName), filePath);
+            Assert.EndsWith(".txt", filePath);
+            Assert.Contains("test-prefix", Path.GetFileName(filePath));
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ScratchFile_NoContent_ReturnsPathWithoutWriting()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), $"squad-sfile2-{Guid.NewGuid():N}");
+        var squadDir = Path.Combine(tempRoot, ".squad");
+        Directory.CreateDirectory(squadDir);
+        try
+        {
+            var filePath = SquadResolver.ScratchFile(squadDir, "no-content");
+
+            Assert.False(File.Exists(filePath));
+            Assert.EndsWith(".tmp", filePath);
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ScratchFile_PathTraversalInPrefix_Sanitized()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), $"squad-sfile3-{Guid.NewGuid():N}");
+        var squadDir = Path.Combine(tempRoot, ".squad");
+        Directory.CreateDirectory(squadDir);
+        try
+        {
+            var filePath = SquadResolver.ScratchFile(squadDir, "../evil", ".txt");
+
+            // Must stay inside the scratch directory
+            Assert.StartsWith(Path.Combine(squadDir, SquadResolver.ScratchDirName), filePath);
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData("my-project", "my-project")]
+    [InlineData("MyProject", "myproject")]
+    [InlineData("my project", "my-project")]
+    [InlineData("my/project", "project")]
+    [InlineData("/", "unknown-project")]
+    [InlineData("", "unknown-project")]
+    public void DeriveProjectKey_VariousInputs_ReturnsExpected(string input, string expected)
+    {
+        Assert.Equal(expected, SquadResolver.DeriveProjectKey(input));
+    }
+
+    [Fact]
+    public void ResolveExternalStateDir_ValidKey_ReturnsPathUnderPersonalProjects()
+    {
+        var personalDir = SquadResolver.ResolvePersonalSquadDir();
+        if (personalDir is null) return; // Skip when env can't be determined
+
+        try
+        {
+            var result = SquadResolver.ResolveExternalStateDir("test-project-key", create: true);
+
+            Assert.Contains(Path.Combine("projects", "test-project-key"), result);
+            Assert.True(Directory.Exists(result));
+        }
+        finally
+        {
+            var dir = Path.Combine(personalDir, "projects", "test-project-key");
+            if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("..")]
+    [InlineData("a/../b")]
+    public void ResolveExternalStateDir_InvalidKey_ThrowsArgumentException(string invalidKey)
+    {
+        Assert.Throws<ArgumentException>(() => SquadResolver.ResolveExternalStateDir(invalidKey, create: false));
+    }
+}
+
+#endregion
+
+#region Resolution — SquadDirConfig new fields
+
+public sealed class SquadDirConfigNewFieldsTests
+{
+    [Fact]
+    public void SquadDirConfig_NewFields_DefaultToNull_And_False()
+    {
+        var config = new SquadDirConfig();
+
+        Assert.Null(config.StateLocation);
+        Assert.Null(config.StateBackend);
+        Assert.False(config.Consult);
+    }
+
+    [Fact]
+    public void SquadDirConfig_NewFields_CanBeSet()
+    {
+        var config = new SquadDirConfig
+        {
+            StateLocation = "external",
+            StateBackend = "worktree",
+            Consult = true,
+        };
+
+        Assert.Equal("external", config.StateLocation);
+        Assert.Equal("worktree", config.StateBackend);
+        Assert.True(config.Consult);
+    }
+}
+
+#endregion
+
+#region Resolution — SquadExternalizer
+
+public sealed class SquadExternalizerTests : IDisposable
+{
+    private readonly string _tempRoot;
+    private readonly string _projectDir;
+    private readonly string _squadDir;
+
+    public SquadExternalizerTests()
+    {
+        _tempRoot = Path.Combine(Path.GetTempPath(), $"squad-ext-{Guid.NewGuid():N}");
+        _projectDir = _tempRoot;
+        _squadDir = Path.Combine(_projectDir, ".squad");
+        Directory.CreateDirectory(_squadDir);
+    }
+
+    public void Dispose()
+    {
+        if (Directory.Exists(_tempRoot)) Directory.Delete(_tempRoot, recursive: true);
+
+        // Clean up external state created during test
+        try
+        {
+            var key = SquadResolver.DeriveProjectKey(_projectDir);
+            var ext = SquadResolver.ResolveExternalStateDir(key, create: false);
+            if (Directory.Exists(ext)) Directory.Delete(ext, recursive: true);
+        }
+        catch { /* best-effort */ }
+    }
+
+    [Fact]
+    public void Externalize_MovesStateAndWritesConfigMarker()
+    {
+        // Arrange: create a state file inside .squad/
+        File.WriteAllText(Path.Combine(_squadDir, "team.md"), "# Team");
+
+        // Act
+        var externalDir = SquadExternalizer.Externalize(_projectDir);
+
+        // Assert: state file moved to external dir
+        Assert.True(File.Exists(Path.Combine(externalDir, "team.md")));
+        Assert.False(File.Exists(Path.Combine(_squadDir, "team.md")));
+
+        // Assert: config.json marker written
+        var configPath = Path.Combine(_squadDir, "config.json");
+        Assert.True(File.Exists(configPath));
+        var configText = File.ReadAllText(configPath);
+        Assert.Contains("\"stateLocation\"", configText);
+        Assert.Contains("external", configText);
+    }
+
+    [Fact]
+    public void Externalize_NoSquadDir_Throws()
+    {
+        var missingDir = Path.Combine(Path.GetTempPath(), $"no-squad-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(missingDir);
+        try
+        {
+            Assert.Throws<InvalidOperationException>(() => SquadExternalizer.Externalize(missingDir));
+        }
+        finally
+        {
+            Directory.Delete(missingDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Internalize_RestoresStateAndRemovesMarker()
+    {
+        // Arrange: externalize first
+        File.WriteAllText(Path.Combine(_squadDir, "team.md"), "# Team");
+        SquadExternalizer.Externalize(_projectDir);
+
+        // Act
+        SquadExternalizer.Internalize(_projectDir);
+
+        // Assert: state file restored
+        Assert.True(File.Exists(Path.Combine(_squadDir, "team.md")));
+
+        // Assert: config.json removed (nothing meaningful left)
+        var configPath = Path.Combine(_squadDir, "config.json");
+        Assert.False(File.Exists(configPath));
+    }
+
+    [Fact]
+    public void Internalize_StateAlreadyLocal_Throws()
+    {
+        // No config.json exists — state is local
+        Assert.Throws<InvalidOperationException>(() => SquadExternalizer.Internalize(_projectDir));
+    }
+}
+
+#endregion
