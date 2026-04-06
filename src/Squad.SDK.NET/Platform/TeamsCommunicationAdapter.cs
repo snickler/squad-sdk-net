@@ -81,15 +81,16 @@ public sealed class TeamsCommunicationAdapter : ICommunicationAdapter
         var chatId = await EnsureChatAsync(accessToken, cancellationToken).ConfigureAwait(false);
 
         var htmlBody = FormatTeamsMessage(options.Title, options.Body, options.Author);
-        var payload = new
+        var payload = new TeamsChatMessagePayload
         {
-            body = new { contentType = "html", content = htmlBody }
+            Body = new TeamsMessageBody { ContentType = "html", Content = htmlBody }
         };
 
-        var response = await GraphPostAsync(
+        var jsonPayload = JsonSerializer.Serialize(payload, TeamsJsonContext.Default.TeamsChatMessagePayload);
+        var response = await GraphPostJsonAsync(
             $"{GraphBase}/chats/{ValidateGraphId(chatId, "chatId")}/messages",
             accessToken,
-            payload,
+            jsonPayload,
             cancellationToken).ConfigureAwait(false);
 
         var messageId = response is not null && response.TryGetValue("id", out var idElem)
@@ -245,9 +246,8 @@ public sealed class TeamsCommunicationAdapter : ICommunicationAdapter
         var interval = root.TryGetProperty("interval", out var intervalProp) ? intervalProp.GetInt32() : 5;
         var message = root.TryGetProperty("message", out var msgProp) ? msgProp.GetString() ?? "" : "";
 
-        // Emit the device code message for the user to see
-        _logger.LogInformation("Teams auth: {Message}", message);
-        Console.WriteLine(message);
+        // Emit the device code message via logger so applications can capture/display it
+        _logger.LogWarning("Teams auth required: {Message}", message);
 
         // Poll for token
         var tokenEndpoint = $"https://login.microsoftonline.com/{_config.TenantId}/oauth2/v2.0/token";
@@ -326,17 +326,28 @@ public sealed class TeamsCommunicationAdapter : ICommunicationAdapter
                     : throw new InvalidOperationException($"Could not find Teams user: {_config.RecipientUpn}");
             }
 
-            var chatPayload = new
+            var chatPayload = new TeamsChatPayload
             {
-                chatType = "oneOnOne",
-                members = new[]
-                {
-                    new { @odata_type = "#microsoft.graph.aadUserConversationMember", roles = new[] { "owner" }, user_id = $"https://graph.microsoft.com/v1.0/users('{myId}')" },
-                    new { @odata_type = "#microsoft.graph.aadUserConversationMember", roles = new[] { "owner" }, user_id = $"https://graph.microsoft.com/v1.0/users('{recipientId}')" }
-                }
+                ChatType = "oneOnOne",
+                Members =
+                [
+                    new TeamsConversationMember
+                    {
+                        OdataType = "#microsoft.graph.aadUserConversationMember",
+                        Roles = ["owner"],
+                        UserId = FormatUserIdUrl(ValidateGraphId(myId, "myId"))
+                    },
+                    new TeamsConversationMember
+                    {
+                        OdataType = "#microsoft.graph.aadUserConversationMember",
+                        Roles = ["owner"],
+                        UserId = FormatUserIdUrl(ValidateGraphId(recipientId, "recipientId"))
+                    }
+                ]
             };
 
-            var chatResponse = await GraphPostAsync($"{GraphBase}/chats", accessToken, chatPayload, cancellationToken).ConfigureAwait(false);
+            var chatJson = JsonSerializer.Serialize(chatPayload, TeamsJsonContext.Default.TeamsChatPayload);
+            var chatResponse = await GraphPostJsonAsync($"{GraphBase}/chats", accessToken, chatJson, cancellationToken).ConfigureAwait(false);
             return chatResponse is not null && chatResponse.TryGetValue("id", out var chatIdElem)
                 ? chatIdElem.GetString() ?? throw new InvalidOperationException("Failed to create or retrieve Teams chat.")
                 : throw new InvalidOperationException("Failed to create or retrieve Teams chat.");
@@ -382,14 +393,13 @@ public sealed class TeamsCommunicationAdapter : ICommunicationAdapter
         return null;
     }
 
-    private async Task<Dictionary<string, JsonElement>?> GraphPostAsync(
+    private async Task<Dictionary<string, JsonElement>?> GraphPostJsonAsync(
         string url,
         string accessToken,
-        object payload,
+        string jsonPayload,
         CancellationToken cancellationToken)
     {
         const int MaxRetries = 3;
-        var jsonPayload = JsonSerializer.Serialize(payload, TeamsJsonContext.Default.Object);
 
         for (var attempt = 0; attempt <= MaxRetries; attempt++)
         {
@@ -508,6 +518,26 @@ public sealed class TeamsCommunicationAdapter : ICommunicationAdapter
             throw new ArgumentException($"Invalid {label}: \"{id}\"", label);
         return id;
     }
+
+    private static string FormatUserIdUrl(string userId) =>
+        $"https://graph.microsoft.com/v1.0/users('{Uri.EscapeDataString(userId)}')";
+}
+
+/// <summary>Payload for sending a message to a Teams chat via Microsoft Graph.</summary>
+internal sealed record TeamsChatMessagePayload
+{
+    [JsonPropertyName("body")]
+    public required TeamsMessageBody Body { get; init; }
+}
+
+/// <summary>The body of a Teams message.</summary>
+internal sealed record TeamsMessageBody
+{
+    [JsonPropertyName("contentType")]
+    public required string ContentType { get; init; }
+
+    [JsonPropertyName("content")]
+    public required string Content { get; init; }
 }
 
 /// <summary>
@@ -523,10 +553,36 @@ internal sealed record StoredTokens
     public required DateTimeOffset ExpiresAt { get; init; }
 }
 
+/// <summary>Payload for creating a new Teams chat via Microsoft Graph.</summary>
+internal sealed record TeamsChatPayload
+{
+    [JsonPropertyName("chatType")]
+    public required string ChatType { get; init; }
+
+    [JsonPropertyName("members")]
+    public required TeamsConversationMember[] Members { get; init; }
+}
+
+/// <summary>A conversation member entry for a new Teams chat payload.</summary>
+internal sealed record TeamsConversationMember
+{
+    [JsonPropertyName("@odata.type")]
+    public required string OdataType { get; init; }
+
+    [JsonPropertyName("roles")]
+    public required string[] Roles { get; init; }
+
+    [JsonPropertyName("user@odata.bind")]
+    public required string UserId { get; init; }
+}
+
 /// <summary>Source-generated JSON context for Teams adapter types.</summary>
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
 [JsonSerializable(typeof(StoredTokens))]
-[JsonSerializable(typeof(object))]
+[JsonSerializable(typeof(TeamsChatPayload))]
+[JsonSerializable(typeof(TeamsConversationMember))]
+[JsonSerializable(typeof(TeamsChatMessagePayload))]
+[JsonSerializable(typeof(TeamsMessageBody))]
 internal partial class TeamsJsonContext : JsonSerializerContext
 {
 }
