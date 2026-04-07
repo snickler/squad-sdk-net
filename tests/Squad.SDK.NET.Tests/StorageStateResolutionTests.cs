@@ -840,6 +840,146 @@ public sealed class SquadResolverTests
                 Directory.Delete(tempDir, recursive: true);
         }
     }
+
+    [Fact]
+    public void ScratchDir_CreatesDirectory()
+    {
+        var tempSquadRoot = Path.Combine(Path.GetTempPath(), $"squad-scratch-{Guid.NewGuid():N}");
+        try
+        {
+            Directory.CreateDirectory(tempSquadRoot);
+
+            var scratchPath = SquadResolver.ScratchDir(tempSquadRoot);
+
+            Assert.NotNull(scratchPath);
+            Assert.True(Directory.Exists(scratchPath));
+            Assert.Equal(Path.Combine(tempSquadRoot, ".scratch"), scratchPath);
+        }
+        finally
+        {
+            if (Directory.Exists(tempSquadRoot))
+                Directory.Delete(tempSquadRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ScratchDir_WithCreateFalse_DoesNotCreateDirectory()
+    {
+        var tempSquadRoot = Path.Combine(Path.GetTempPath(), $"squad-scratch-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempSquadRoot);
+
+        var scratchPath = SquadResolver.ScratchDir(tempSquadRoot, create: false);
+
+        Assert.Equal(Path.Combine(tempSquadRoot, ".scratch"), scratchPath);
+        Assert.False(Directory.Exists(scratchPath));
+
+        if (Directory.Exists(tempSquadRoot))
+            Directory.Delete(tempSquadRoot, recursive: true);
+    }
+
+    [Fact]
+    public void ScratchFile_ReturnsPathWithExpectedPrefixAndExtension()
+    {
+        var tempSquadRoot = Path.Combine(Path.GetTempPath(), $"squad-scratchfile-{Guid.NewGuid():N}");
+        try
+        {
+            Directory.CreateDirectory(tempSquadRoot);
+
+            var filePath = SquadResolver.ScratchFile(tempSquadRoot, "fleet-prompt", ".txt");
+
+            Assert.NotNull(filePath);
+            Assert.StartsWith(Path.Combine(tempSquadRoot, ".scratch", "fleet-prompt"), filePath);
+            Assert.EndsWith(".txt", filePath);
+        }
+        finally
+        {
+            if (Directory.Exists(tempSquadRoot))
+                Directory.Delete(tempSquadRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ScratchFile_WithContent_WritesContentToFile()
+    {
+        var tempSquadRoot = Path.Combine(Path.GetTempPath(), $"squad-scratchfile-{Guid.NewGuid():N}");
+        try
+        {
+            Directory.CreateDirectory(tempSquadRoot);
+
+            var filePath = SquadResolver.ScratchFile(tempSquadRoot, "test", ".txt", "hello world");
+
+            Assert.True(File.Exists(filePath));
+            Assert.Equal("hello world", File.ReadAllText(filePath));
+        }
+        finally
+        {
+            if (Directory.Exists(tempSquadRoot))
+                Directory.Delete(tempSquadRoot, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData("../etc/passwd", "passwd")]
+    [InlineData("my-prefix", "my-prefix")]
+    [InlineData("fleet prompt", "fleet prompt")]
+    public void ScratchFile_SanitizesPrefix(string prefix, string expectedBasenameStart)
+    {
+        var tempSquadRoot = Path.Combine(Path.GetTempPath(), $"squad-scratchfile-{Guid.NewGuid():N}");
+        try
+        {
+            Directory.CreateDirectory(tempSquadRoot);
+
+            var filePath = SquadResolver.ScratchFile(tempSquadRoot, prefix, ".tmp");
+
+            Assert.StartsWith(expectedBasenameStart, Path.GetFileName(filePath));
+        }
+        finally
+        {
+            if (Directory.Exists(tempSquadRoot))
+                Directory.Delete(tempSquadRoot, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData("/home/user/my-project", "my-project")]
+    [InlineData("C:\\Users\\User\\my-app", "my-app")]
+    [InlineData("/srv/REPO NAME", "repo-name")]
+    [InlineData("/", "unknown-project")]
+    public void DeriveProjectKey_ReturnsExpectedKey(string projectDir, string expectedKey)
+    {
+        var key = SquadResolver.DeriveProjectKey(projectDir);
+
+        Assert.Equal(expectedKey, key);
+    }
+
+    [Fact]
+    public void ResolveExternalStateDir_ValidKey_ReturnsPathUnderGlobal()
+    {
+        var key = "my-test-project-" + Guid.NewGuid().ToString("N")[..8];
+        string? dir = null;
+        try
+        {
+            dir = SquadResolver.ResolveExternalStateDir(key);
+
+            Assert.NotNull(dir);
+            Assert.True(Directory.Exists(dir));
+            Assert.Contains(key, dir);
+        }
+        finally
+        {
+            if (dir is not null && Directory.Exists(dir))
+                Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("../etc/passwd")]
+    public void ResolveExternalStateDir_InvalidKey_ThrowsArgumentException(string key)
+    {
+        Assert.Throws<ArgumentException>(() => SquadResolver.ResolveExternalStateDir(key));
+    }
 }
 
 #endregion
