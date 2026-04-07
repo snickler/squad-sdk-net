@@ -105,4 +105,105 @@ public static class SquadResolver
         var gitPath = Path.Combine(searchDir, ".git");
         return File.Exists(gitPath) && !Directory.Exists(gitPath);
     }
+
+    /// <summary>
+    /// Returns the scratch directory path inside <paramref name="squadRoot"/>, creating it if it does not exist.
+    /// </summary>
+    /// <param name="squadRoot">Absolute path to the <c>.squad/</c> directory.</param>
+    /// <param name="create">Whether to create the directory when it does not exist (default: <see langword="true"/>).</param>
+    /// <returns>Absolute path to the <c>.scratch</c> subdirectory.</returns>
+    public static string ScratchDir(string squadRoot, bool create = true)
+    {
+        var dir = Path.Combine(squadRoot, ".scratch");
+        if (create && !Directory.Exists(dir))
+            Directory.CreateDirectory(dir);
+        return dir;
+    }
+
+    /// <summary>
+    /// Returns a unique file path inside the scratch directory.
+    /// Writes <paramref name="content"/> to the file when provided; otherwise the file is not created and the
+    /// caller is responsible for writing to it.
+    /// </summary>
+    /// <param name="squadRoot">Absolute path to the <c>.squad/</c> directory.</param>
+    /// <param name="prefix">Filename prefix (e.g. <c>"fleet-prompt"</c>).</param>
+    /// <param name="ext">File extension including dot (e.g. <c>".txt"</c>). Defaults to <c>".tmp"</c>.</param>
+    /// <param name="content">Optional content to write immediately.</param>
+    /// <returns>Absolute path to the scratch file.</returns>
+    public static string ScratchFile(string squadRoot, string prefix, string ext = ".tmp", string? content = null)
+    {
+        // Sanitize prefix to prevent path traversal — strip directory components
+        var safePrefix = Path.GetFileName(prefix);
+        var safeExt = ext.Replace('/', '_').Replace('\\', '_');
+
+        var dir = ScratchDir(squadRoot);
+
+        var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var rand = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(4)).ToLowerInvariant();
+
+        var filename = $"{safePrefix}-{now}-{rand}{safeExt}";
+        var filePath = Path.Combine(dir, filename);
+        if (content is not null)
+            File.WriteAllText(filePath, content);
+        return filePath;
+    }
+
+    /// <summary>
+    /// Derives a stable project key from a project directory path.
+    /// Takes the basename of the path, lowercases it, and replaces unsafe characters with dashes.
+    /// </summary>
+    /// <param name="projectDir">Absolute path to the project root.</param>
+    /// <returns>A sanitized, lowercase project key suitable for use as a directory name.</returns>
+    public static string DeriveProjectKey(string projectDir)
+    {
+        var normalized = projectDir.Replace('\\', '/');
+        var baseName = Path.GetFileName(normalized.TrimEnd('/'));
+        if (string.IsNullOrEmpty(baseName))
+            return "unknown-project";
+
+        // Lowercase and replace unsafe chars with dashes
+        var sanitized = System.Text.RegularExpressions.Regex.Replace(
+            baseName.ToLowerInvariant(),
+            @"[^a-z0-9._-]",
+            "-");
+        sanitized = sanitized.Trim('-');
+
+        return string.IsNullOrEmpty(sanitized) ? "unknown-project" : sanitized;
+    }
+
+    /// <summary>
+    /// Resolves the external state directory for a project.
+    /// The path is <c>{personalDir}/projects/{sanitizedKey}/</c> where <c>personalDir</c>
+    /// is the user-level squad config directory (see <see cref="ResolvePersonalSquadDir"/>).
+    /// </summary>
+    /// <param name="projectKey">The project key (from <see cref="DeriveProjectKey"/> or user-supplied).</param>
+    /// <param name="create">Whether to create the directory when it does not exist (default: <see langword="true"/>).</param>
+    /// <returns>Absolute path to the project's external state directory.</returns>
+    /// <exception cref="ArgumentException">
+    /// Thrown when <paramref name="projectKey"/> is empty or contains path traversal sequences.
+    /// </exception>
+    public static string ResolveExternalStateDir(string projectKey, bool create = true)
+    {
+        if (string.IsNullOrWhiteSpace(projectKey) || projectKey.Contains(".."))
+            throw new ArgumentException("Invalid project key.", nameof(projectKey));
+
+        // Sanitize: replace path separators and unsafe chars with dashes
+        var sanitized = System.Text.RegularExpressions.Regex.Replace(
+            projectKey.Replace('/', '-').Replace('\\', '-'),
+            @"[^a-zA-Z0-9._-]",
+            "-");
+        sanitized = sanitized.Trim('-');
+
+        if (string.IsNullOrEmpty(sanitized))
+            throw new ArgumentException("Invalid project key.", nameof(projectKey));
+
+        var baseDir = ResolvePersonalSquadDir()
+            ?? throw new InvalidOperationException("Cannot determine personal squad directory.");
+        var projectsDir = Path.Combine(baseDir, "projects", sanitized);
+
+        if (create && !Directory.Exists(projectsDir))
+            Directory.CreateDirectory(projectsDir);
+
+        return projectsDir;
+    }
 }

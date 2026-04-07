@@ -293,7 +293,7 @@ public sealed class RoleCatalogTests
     public void GetAllRoles_ReturnsTenRoles()
     {
         var roles = RoleCatalog.GetAllRoles();
-        Assert.Equal(10, roles.Count);
+        Assert.Equal(11, roles.Count);
     }
 
     [Theory]
@@ -307,6 +307,7 @@ public sealed class RoleCatalogTests
     [InlineData("devops", "DevOps Engineer")]
     [InlineData("designer", "UX Designer")]
     [InlineData("devrel", "Developer Advocate")]
+    [InlineData("fact-checker", "Fact Checker")]
     public void GetRole_ValidId_ReturnsExpectedRole(string id, string expectedName)
     {
         var role = RoleCatalog.GetRole(id);
@@ -1164,6 +1165,225 @@ public sealed class ManifestValidatorTests
         var errors = ManifestValidator.Validate(manifest);
 
         Assert.True(errors.Count >= 2);
+    }
+}
+
+#endregion
+
+#region Platform — CommunicationTypes & TeamsCommunicationAdapter
+
+public sealed class CommunicationTypesTests
+{
+    [Fact]
+    public void CommunicationChannel_AllValuesAreDefined()
+    {
+        foreach (var value in Enum.GetValues<CommunicationChannel>())
+        {
+            Assert.True(Enum.IsDefined(value));
+        }
+    }
+
+    [Fact]
+    public void CommunicationChannel_IncludesTeamsGraph()
+    {
+        Assert.True(Enum.IsDefined(CommunicationChannel.TeamsGraph));
+    }
+
+    [Fact]
+    public void CommunicationReply_RequiredProperties_Set()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var reply = new CommunicationReply
+        {
+            Author = "alice",
+            Body = "Hello",
+            Timestamp = now,
+            Id = "msg-1"
+        };
+
+        Assert.Equal("alice", reply.Author);
+        Assert.Equal("Hello", reply.Body);
+        Assert.Equal(now, reply.Timestamp);
+        Assert.Equal("msg-1", reply.Id);
+    }
+
+    [Fact]
+    public void CommunicationConfig_RequiredProperties_Set()
+    {
+        var config = new CommunicationConfig
+        {
+            Channel = CommunicationChannel.TeamsGraph,
+            PostAfterSession = true,
+            PostDecisions = false
+        };
+
+        Assert.Equal(CommunicationChannel.TeamsGraph, config.Channel);
+        Assert.True(config.PostAfterSession);
+        Assert.False(config.PostDecisions);
+    }
+
+    [Fact]
+    public void PostUpdateOptions_RequiredProperties_Set()
+    {
+        var opts = new PostUpdateOptions
+        {
+            Title = "Update Title",
+            Body = "Body text",
+            Author = "bot"
+        };
+
+        Assert.Equal("Update Title", opts.Title);
+        Assert.Equal("Body text", opts.Body);
+        Assert.Equal("bot", opts.Author);
+    }
+
+    [Fact]
+    public void PostUpdateResult_RequiredProperties_Set()
+    {
+        var result = new PostUpdateResult
+        {
+            Id = "thread-42",
+            Url = "https://teams.microsoft.com/l/chat/abc"
+        };
+
+        Assert.Equal("thread-42", result.Id);
+        Assert.NotNull(result.Url);
+    }
+}
+
+public sealed class TeamsCommsConfigTests
+{
+    [Fact]
+    public void TeamsCommsConfig_Defaults_AreNull()
+    {
+        var config = new TeamsCommsConfig();
+
+        Assert.Null(config.TenantId);
+        Assert.Null(config.ClientId);
+        Assert.Null(config.RecipientUpn);
+        Assert.Null(config.ChatId);
+        Assert.Null(config.ChannelId);
+        Assert.Null(config.TeamId);
+    }
+
+    [Fact]
+    public void TeamsCommsConfig_AllProperties_Set()
+    {
+        var config = new TeamsCommsConfig
+        {
+            TenantId = "my-tenant",
+            ClientId = "my-client",
+            RecipientUpn = "user@contoso.com",
+            ChatId = "chat-123",
+            ChannelId = "channel-456",
+            TeamId = "team-789"
+        };
+
+        Assert.Equal("my-tenant", config.TenantId);
+        Assert.Equal("my-client", config.ClientId);
+        Assert.Equal("user@contoso.com", config.RecipientUpn);
+        Assert.Equal("chat-123", config.ChatId);
+        Assert.Equal("channel-456", config.ChannelId);
+        Assert.Equal("team-789", config.TeamId);
+    }
+}
+
+public sealed class TeamsCommunicationAdapterStaticTests
+{
+    [Fact]
+    public void Channel_IsTeamsGraph()
+    {
+        var adapter = new TeamsCommunicationAdapter(new TeamsCommsConfig());
+        Assert.Equal(CommunicationChannel.TeamsGraph, adapter.Channel);
+    }
+
+    [Fact]
+    public void GetNotificationUrl_ReturnsChatUrl()
+    {
+        var adapter = new TeamsCommunicationAdapter(new TeamsCommsConfig { ChatId = "chat-abc" });
+
+        var url = adapter.GetNotificationUrl("chat-abc");
+
+        Assert.NotNull(url);
+        Assert.Contains("teams.microsoft.com", url);
+        Assert.Contains("chat", url);
+    }
+
+    [Theory]
+    [InlineData("safe-id-123", "safe-id-123")]
+    [InlineData("team@org.com", "team%40org.com")]
+    public void ValidateGraphId_ValidId_ReturnsEscaped(string id, string expectedEncoded)
+    {
+        var result = TeamsCommunicationAdapter.ValidateGraphId(id, "id");
+        Assert.Equal(expectedEncoded, result);
+    }
+
+    [Theory]
+    [InlineData("id with spaces")]
+    [InlineData("<script>")]
+    [InlineData("id/path")]
+    public void ValidateGraphId_InvalidId_ThrowsArgumentException(string id)
+    {
+        Assert.Throws<ArgumentException>(() => TeamsCommunicationAdapter.ValidateGraphId(id, "id"));
+    }
+
+    [Fact]
+    public void FormatTeamsMessage_WithoutAuthor_FormatsCorrectly()
+    {
+        var result = TeamsCommunicationAdapter.FormatTeamsMessage("My Title", "Body text", null);
+
+        Assert.Contains("<b>My Title</b>", result);
+        Assert.Contains("Body text", result);
+        Assert.DoesNotContain("<em>", result);
+    }
+
+    [Fact]
+    public void FormatTeamsMessage_WithAuthor_IncludesAuthorLine()
+    {
+        var result = TeamsCommunicationAdapter.FormatTeamsMessage("Title", "Body", "scribe-bot");
+
+        Assert.Contains("<em>Posted by scribe-bot</em>", result);
+    }
+
+    [Fact]
+    public void FormatTeamsMessage_EscapesHtmlInTitle()
+    {
+        var result = TeamsCommunicationAdapter.FormatTeamsMessage("<script>", "Body", null);
+
+        Assert.DoesNotContain("<script>", result);
+        Assert.Contains("&lt;script&gt;", result);
+    }
+
+    [Fact]
+    public void EscapeHtml_EscapesAllSpecialChars()
+    {
+        var result = TeamsCommunicationAdapter.EscapeHtml("a&b<c>d\"e'f");
+
+        Assert.Equal("a&amp;b&lt;c&gt;d&quot;e&#39;f", result);
+    }
+
+    [Fact]
+    public void StripHtml_RemovesTags()
+    {
+        var result = TeamsCommunicationAdapter.StripHtml("<b>Hello</b> <em>world</em>");
+
+        Assert.Equal("Hello world", result);
+    }
+
+    [Fact]
+    public void StripHtml_DecodesEntities()
+    {
+        var result = TeamsCommunicationAdapter.StripHtml("&amp;&lt;&gt;&quot;&nbsp;");
+
+        // Trim() removes leading/trailing whitespace; &nbsp; at the end becomes a trimmed-away space
+        Assert.Equal("&<>\"", result);
+    }
+
+    [Fact]
+    public void ICommunicationAdapter_Implemented_ByTeamsAdapter()
+    {
+        var adapter = new TeamsCommunicationAdapter(new TeamsCommsConfig());
+        Assert.IsAssignableFrom<ICommunicationAdapter>(adapter);
     }
 }
 

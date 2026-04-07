@@ -99,6 +99,15 @@ public static class RoleCatalog
             Category = RoleCategory.DevRel,
             Expertise = ["developer-experience", "demos", "content-creation", "community"],
             PromptTemplate = "You are a developer advocate. Create compelling demos, write developer content, and improve developer experience."
+        },
+        ["fact-checker"] = new BaseRole
+        {
+            Id = "fact-checker",
+            Name = "Fact Checker",
+            Description = "Verifies claims, detects hallucinations in LLM outputs, and cross-references team decisions for consistency.",
+            Category = RoleCategory.Testing,
+            Expertise = ["claim-verification", "hallucination-detection", "counter-hypothesis", "source-validation", "consistency-checks"],
+            PromptTemplate = "You are a fact checker. Trust, but verify. For every claim, ask: \"What evidence supports this? What would disprove it?\" Verify URLs, package names, API endpoints, and version numbers actually exist. Run counter-hypotheses against key assumptions. Use confidence ratings (✅ Verified, ⚠️ Unverified, ❌ Contradicted). Flag issues clearly without being abrasive."
         }
     };
 
