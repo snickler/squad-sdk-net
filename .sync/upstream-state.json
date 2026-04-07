@@ -1,0 +1,11 @@
+{
+  "upstream": "bradygaster/squad",
+  "dev": {
+    "lastPortedSha": null,
+    "lastChecked": null
+  },
+  "insider": {
+    "lastPortedSha": null,
+    "lastChecked": null
+  }
+}
