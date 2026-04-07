@@ -64,10 +64,31 @@ Pushing a `v*` tag triggers the [release workflow](.github/workflows/release.yml
 6. **Attests** build provenance for supply-chain security
 7. **Creates** a GitHub Release with auto-generated notes
 8. **Publishes** to NuGet.org (requires `NUGET_API_KEY` secret in the `release` environment)
+9. **Publishes** to GitHub Packages (using `GITHUB_TOKEN`, no extra configuration needed)
 
 ### 4. Pre-release tags
 
 Tags containing a hyphen (e.g., `v0.2.0-preview.1`) are automatically marked as pre-release on both GitHub and NuGet.
+
+## CI Packages
+
+Every push to `main` also publishes a pre-release package to [GitHub Packages](https://github.com/snickler/squad-sdk-net/packages) using the version format `{version}-ci.{run_number}` (e.g., `0.1.0-ci.42`). This lets you consume the latest development build without downloading an artifact manually.
+
+To use CI packages, add the GitHub Packages NuGet source to your project:
+
+```bash
+dotnet nuget add source \
+  "https://nuget.pkg.github.com/snickler/index.json" \
+  --name "GitHub snickler" \
+  --username <your-github-username> \
+  --password <your-github-pat>
+```
+
+Then install the latest CI build:
+
+```bash
+dotnet add package Squad.SDK.NET --prerelease
+```
 
 ## Protected Release Environment
 
