@@ -1,0 +1,286 @@
+name: "Sync Phase 2: Insider Cherry-Pick"
+
+on:
+  issues:
+    types: [closed]
+
+concurrency:
+  group: sync-insider-followup
+  cancel-in-progress: true
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  create-insider-sync-issue:
+    runs-on: ubuntu-latest
+    # Only run if the closed issue has sync:dev label and contains our marker
+    if: contains(github.event.issue.labels.*.name, 'sync:dev') && contains(github.event.issue.body, '<!-- sync-issue-marker -->')
+    steps:
+      - name: Checkout dev branch
+        uses: actions/checkout@v4
+        with:
+          ref: dev
+          fetch-depth: 0
+
+      - name: Fetch upstream and origin branches
+        run: |
+          git remote add upstream https://github.com/bradygaster/squad.git
+          git fetch upstream dev insider --no-tags
+          git fetch origin dev insider --no-tags
+
+      - name: Analyze and create insider sync issue
+        uses: actions/github-script@v8
+        env:
+          CLOSED_ISSUE_BODY: ${{ github.event.issue.body }}
+          CLOSED_ISSUE_NUMBER: ${{ github.event.issue.number }}
+        with:
+          script: |
+            const { execSync } = require('child_process');
+            const fs = require('fs');
+
+            // === Configuration ===
+            const UPSTREAM = 'bradygaster/squad';
+            const TRACKING_FILE = '.sync/upstream-state.json';
+            const ISSUE_MARKER = '<!-- sync-issue-marker -->';
+
+            const run = (cmd) => {
+              try {
+                return execSync(cmd, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+              } catch (err) {
+                return null;
+              }
+            };
+
+            const runOrFail = (cmd, context) => {
+              try {
+                return execSync(cmd, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+              } catch (err) {
+                core.setFailed(`${context}: ${err.message}`);
+                return null;
+              }
+            };
+
+            const sanitize = (msg) => msg.replace(/@/g, '`@`');
+
+            // === Extract metadata from closed issue ===
+            const closedIssueBody = process.env.CLOSED_ISSUE_BODY || '';
+            const closedIssueNumber = process.env.CLOSED_ISSUE_NUMBER || 'unknown';
+
+            const extractMarker = (body, marker) => {
+              const regex = new RegExp(`<!-- ${marker}: ([a-f0-9]+) -->`);
+              const match = body.match(regex);
+              return match ? match[1] : null;
+            };
+
+            const ourDevHeadBefore = extractMarker(closedIssueBody, 'our-dev-head');
+            const insiderTargetSha = extractMarker(closedIssueBody, 'insider-target-sha');
+
+            if (!ourDevHeadBefore) {
+              core.warning('Could not extract our-dev-head marker from closed issue — skipping');
+              return;
+            }
+
+            if (!insiderTargetSha) {
+              core.warning('Could not extract insider-target-sha marker from closed issue — skipping');
+              return;
+            }
+
+            core.info(`Closed issue #${closedIssueNumber} metadata:`);
+            core.info(`  our-dev-head (before): ${ourDevHeadBefore.substring(0, 7)}`);
+            core.info(`  insider-target-sha:    ${insiderTargetSha.substring(0, 7)}`);
+
+            // === Get current state ===
+            const ourDevHead = runOrFail('git rev-parse origin/dev', 'Resolve origin/dev');
+            if (!ourDevHead) return;
+
+            const upstreamInsiderHead = runOrFail('git rev-parse upstream/insider', 'Resolve upstream/insider');
+            if (!upstreamInsiderHead) return;
+
+            const upstreamDevHead = runOrFail('git rev-parse upstream/dev', 'Resolve upstream/dev');
+            if (!upstreamDevHead) return;
+
+            core.info('Current state:');
+            core.info(`  origin/dev:         ${ourDevHead.substring(0, 7)}`);
+            core.info(`  upstream/insider:   ${upstreamInsiderHead.substring(0, 7)}`);
+            core.info(`  upstream/dev:       ${upstreamDevHead.substring(0, 7)}`);
+
+            // === Read tracking state ===
+            let state = {
+              upstream: UPSTREAM,
+              dev: { lastPortedSha: null, lastChecked: null },
+              insider: { lastPortedSha: null, lastChecked: null }
+            };
+
+            try {
+              if (fs.existsSync(TRACKING_FILE)) {
+                state = JSON.parse(fs.readFileSync(TRACKING_FILE, 'utf8'));
+              }
+            } catch (err) {
+              core.warning(`Could not parse tracking file: ${err.message}`);
+            }
+
+            const trackedInsider = state.insider?.lastPortedSha || null;
+            core.info(`Tracked insider SHA: ${trackedInsider?.substring(0, 7) || '(none)'}`);
+
+            // === Check if insider work is needed ===
+            if (upstreamInsiderHead === trackedInsider) {
+              core.info('Upstream insider has not changed since last tracked SHA — no work needed');
+              return;
+            }
+
+            // === Get commits made during dev port ===
+            const devPortLog = run(`git log --format="%H %s" ${ourDevHeadBefore}..origin/dev`);
+            const devPortCommits = devPortLog ? devPortLog.split('\n').filter(Boolean) : [];
+
+            if (devPortCommits.length === 0) {
+              core.info('No commits were made on dev during the port — skipping insider sync');
+              return;
+            }
+
+            core.info(`Found ${devPortCommits.length} commits made during dev port`);
+
+            // === Get upstream dev→insider delta ===
+            const upstreamDeltaLog = run('git log --format="%H %s" upstream/insider..upstream/dev');
+            const upstreamDeltaCommits = upstreamDeltaLog ? upstreamDeltaLog.split('\n').filter(Boolean) : [];
+
+            // === Get upstream insider new commits ===
+            const baselineInsider = trackedInsider || upstreamInsiderHead;
+            const upstreamInsiderLog = run(`git log --format="%H %s" ${baselineInsider}..upstream/insider`);
+            const upstreamInsiderCommits = upstreamInsiderLog ? upstreamInsiderLog.split('\n').filter(Boolean) : [];
+
+            core.info(`Upstream dev-only commits (not in insider): ${upstreamDeltaCommits.length}`);
+            core.info(`New upstream insider commits: ${upstreamInsiderCommits.length}`);
+
+            // === Format helpers ===
+            function formatCommits(entries, prefix = '') {
+              if (!entries.length) return '_No commits to display_';
+              return entries.slice(0, 30).map(line => {
+                const spaceIdx = line.indexOf(' ');
+                const sha = line.substring(0, spaceIdx);
+                const msg = sanitize(line.substring(spaceIdx + 1));
+                return `${prefix}- [\`${sha.substring(0, 7)}\`](https://github.com/${UPSTREAM}/commit/${sha}) ${msg}`;
+              }).join('\n') + (entries.length > 30 ? `\n${prefix}- _… and ${entries.length - 30} more commits_` : '');
+            }
+
+            // === Build issue body ===
+            const date = new Date().toISOString().split('T')[0];
+            const title = `Sync: insider cherry-pick from dev — ${date}`;
+
+            const body = [
+              ISSUE_MARKER,
+              `<!-- insider-target-sha: ${insiderTargetSha} -->`,
+              `<!-- upstream-insider-head: ${upstreamInsiderHead} -->`,
+              '',
+              '🔒 **Phase 2: Cherry-pick insider changes from dev**',
+              '',
+              `The [dev sync issue #${closedIssueNumber}](${context.payload.issue.html_url}) has been completed.`,
+              'Now we need to cherry-pick the relevant commits from `dev` onto `insider`.',
+              '',
+              '> **Instructions:**',
+              '> 1. Review the dev commits listed below (made during the dev port)',
+              `> 2. Identify which commits port upstream work that exists in upstream/insider (up to SHA \`${insiderTargetSha.substring(0, 7)}\`)`,
+              '> 3. Cherry-pick those commits from `dev` onto `insider`',
+              `> 4. Update \`insider.lastPortedSha\` in \`.sync/upstream-state.json\` to \`${insiderTargetSha}\``,
+              '> 5. Verify build passes on `insider` branch',
+              '> 6. Close this issue',
+              '',
+              '## 📦 Commits Made on Our `dev` During Port',
+              '',
+              `Range: \`${ourDevHeadBefore.substring(0, 7)}..${ourDevHead.substring(0, 7)}\``,
+              '',
+              formatCommits(devPortCommits),
+              '',
+              '---',
+              '',
+              '## 🔒 Upstream Insider Changes',
+              '',
+              `Target SHA: \`${insiderTargetSha.substring(0, 7)}\``,
+              '',
+              upstreamInsiderCommits.length > 0
+                ? `New commits in upstream/insider since our baseline (\`${trackedInsider?.substring(0, 7) || 'none'}\`):\n\n${formatCommits(upstreamInsiderCommits)}`
+                : `Upstream insider is at tracked state — target SHA \`${insiderTargetSha.substring(0, 7)}\` is the boundary.`,
+              '',
+              '---',
+              '',
+              '## ⚠️ Upstream Dev-Only Commits (EXCLUDE These)',
+              '',
+              'These commits are in upstream `dev` but NOT in upstream `insider`:',
+              '',
+              upstreamDeltaCommits.length > 0
+                ? formatCommits(upstreamDeltaCommits)
+                : '_Branches are identical — no dev-only commits._',
+              '',
+              '> 📌 **Do NOT cherry-pick** commits that port work from this list — they are dev-only features.',
+              '',
+              '## 📊 Sync State',
+              '',
+              '| Branch | Our Tracked SHA | Upstream HEAD | Status |',
+              '|--------|----------------|---------------|--------|',
+              `| dev | \`${state.dev?.lastPortedSha?.substring(0, 7) || 'none'}\` | \`${upstreamDevHead.substring(0, 7)}\` | ✅ Updated in phase 1 |`,
+              `| insider | \`${trackedInsider?.substring(0, 7) || 'none'}\` | \`${upstreamInsiderHead.substring(0, 7)}\` | 🔴 Cherry-pick pending |`,
+              '',
+              '## ✅ Completion Checklist',
+              '',
+              '- [ ] Cherry-pick relevant dev commits to `insider` branch',
+              `- [ ] Update \`.sync/upstream-state.json\`: set \`insider.lastPortedSha\` → \`${insiderTargetSha}\``,
+              '- [ ] Verify build passes on `insider` branch',
+              '- [ ] Close this issue',
+            ].join('\n');
+
+            // === Ensure labels exist ===
+            const labels = ['sync', 'sync:insider', 'squad', 'squad:copilot'];
+            const labelDefs = {
+              'sync':          { color: 'F9D0C4', description: 'Upstream sync tracking' },
+              'sync:insider':  { color: 'C2E0C6', description: 'Changes on upstream insider branch' },
+              'squad':         { color: '9B8FCC', description: 'Squad triage inbox' },
+              'squad:copilot': { color: '0E8A16', description: 'Assigned to Copilot coding agent' },
+            };
+
+            for (const label of labels) {
+              try {
+                await github.rest.issues.getLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name: label,
+                });
+              } catch (err) {
+                if (err.status === 404) {
+                  try {
+                    const def = labelDefs[label] || { color: 'EDEDED', description: '' };
+                    await github.rest.issues.createLabel({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      name: label,
+                      color: def.color,
+                      description: def.description,
+                    });
+                    core.info(`Created label: ${label}`);
+                  } catch (createErr) {
+                    if (createErr.status !== 422) {
+                      core.warning(`Could not create label '${label}': ${createErr.message}`);
+                    }
+                  }
+                }
+              }
+            }
+
+            // === Create insider sync issue ===
+            const { data: newIssue } = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels,
+            });
+
+            core.info(`Created insider sync issue #${newIssue.number}: ${title}`);
+
+            // === Comment on closed dev issue ===
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: closedIssueNumber,
+              body: `✅ **Phase 1 complete** — dev sync finished.\n\n🔒 Phase 2 (insider cherry-pick) started: #${newIssue.number}`,
+            });
