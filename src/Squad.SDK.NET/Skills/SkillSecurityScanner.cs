@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 
 namespace Squad.SDK.NET.Skills;
@@ -89,6 +90,9 @@ public static class SkillSecurityScanner
 
     /// <summary>Markdown table row start (leading <c>|</c>).</summary>
     private static readonly Regex TableRowLeadRe = new(@"^\s*\|", RegexOptions.Compiled);
+
+    /// <summary>Cache of compiled close-fence regexes keyed by (fenceChar, fenceLen).</summary>
+    private static readonly ConcurrentDictionary<(char, int), Regex> CloseReCache = new();
 
     // ---------------------------------------------------------------------------
     // Public API
@@ -220,8 +224,11 @@ public static class SkillSecurityScanner
                     inFence = true;
                     var fenceChar = m.Groups[2].Success ? '`' : '~';
                     fenceLen = (m.Groups[2].Success ? m.Groups[2].Value : m.Groups[3].Value).Length;
-                    var closeChar = Regex.Escape(fenceChar.ToString());
-                    closeRe = new Regex($@"^\s{{0,3}}{closeChar}{{{fenceLen},}}\s*$");
+                    closeRe = CloseReCache.GetOrAdd((fenceChar, fenceLen), static key =>
+                    {
+                        var closeChar = Regex.Escape(key.Item1.ToString());
+                        return new Regex($@"^\s{{0,3}}{closeChar}{{{key.Item2},}}\s*$", RegexOptions.Compiled);
+                    });
                     fenced.Add(i);
                 }
             }
