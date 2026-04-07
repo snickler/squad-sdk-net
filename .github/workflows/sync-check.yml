@@ -22,10 +22,11 @@ jobs:
         with:
           ref: main
 
-      - name: Fetch upstream branches
+      - name: Fetch upstream and origin branches
         run: |
           git remote add upstream https://github.com/bradygaster/squad.git
           git fetch upstream dev insider --no-tags
+          git fetch origin dev --no-tags
 
       - name: Check upstream and create or update sync issue
         uses: actions/github-script@v8
@@ -85,6 +86,10 @@ jobs:
 
             core.info(`Upstream dev HEAD:     ${devHead.substring(0, 7)}`);
             core.info(`Upstream insider HEAD: ${insiderHead.substring(0, 7)}`);
+
+            // Capture our current dev branch HEAD (for phase 2 cherry-pick range)
+            const ourDevHead = run('git rev-parse origin/dev');
+            core.info(`Our dev HEAD:          ${ourDevHead?.substring(0, 7) || '(unknown)'}`);
 
             const trackedDev = state.dev?.lastPortedSha || null;
             const trackedInsider = state.insider?.lastPortedSha || null;
@@ -292,12 +297,6 @@ jobs:
             if (!devChanged) {
               core.info('Only insider branch changed — skipped (phase 2 handles insider independently)');
               return;
-            }
-
-            // Capture our current dev branch HEAD for phase 2
-            const ourDevHead = runOrFail('git rev-parse origin/dev', 'Resolve origin/dev');
-            if (!ourDevHead) {
-              core.warning('Could not resolve origin/dev — using placeholder for dev head marker');
             }
 
             // === Determine labels ===
