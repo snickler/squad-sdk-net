@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SourceLink and symbol packages for source-level debugging
 - Deterministic builds with TreatWarningsAsErrors
 - Comprehensive XML documentation on all public APIs
-- 582+ unit tests across 21+ test classes
+- Updated unit tests across multiple test classes
 
 ### Infrastructure
 - Multi-OS CI matrix (Ubuntu + Windows) with code coverage

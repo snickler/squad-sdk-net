@@ -346,7 +346,7 @@ Squad.SDK.NET is fully compatible with .NET Native AOT publishing:
 
 ## Testing
 
-The SDK includes a comprehensive test suite with 20+ test classes and 582+ test cases (and growing):
+The SDK includes a comprehensive test suite with updated test cases:
 
 ```
 Squad.SDK.NET.Tests/

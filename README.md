@@ -46,7 +46,7 @@ squad-sdk-net/
 │       ├── Tools/              # Built-in tool definitions
 │       └── Utils/              # String utilities
 ├── tests/
-│   └── Squad.SDK.NET.Tests/    # Unit tests (582+ tests)
+│   └── Squad.SDK.NET.Tests/    # Unit tests
 ├── docs/
 │   └── examples.md             # Comprehensive usage examples
 ├── .editorconfig               # Code style rules
