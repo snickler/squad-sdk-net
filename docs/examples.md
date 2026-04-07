@@ -18,12 +18,13 @@ A cookbook of copy-paste-ready examples for every major feature of the Squad SDK
 8. [Session Management](#8-session-management)
 9. [Configuration](#9-configuration)
 10. [Skills System](#10-skills-system)
-11. [Import/Export (Sharing)](#11-importexport-sharing)
-12. [Storage Providers](#12-storage-providers)
-13. [Platform Detection](#13-platform-detection)
-14. [Multi-Squad Management](#14-multi-squad-management)
-15. [Casting Engine](#15-casting-engine)
-16. [Advanced Patterns](#16-advanced-patterns)
+11. [Skill Security Scanner](#11-skill-security-scanner)
+12. [Import/Export (Sharing)](#12-importexport-sharing)
+13. [Storage Providers](#13-storage-providers)
+14. [Platform Detection](#14-platform-detection)
+15. [Multi-Squad Management](#15-multi-squad-management)
+16. [Casting Engine](#16-casting-engine)
+17. [Advanced Patterns](#17-advanced-patterns)
 
 ---
 
@@ -1269,7 +1270,104 @@ registry.Unregister("testing-skill");
 
 ---
 
-## 11. Import/Export (Sharing)
+## 11. Skill Security Scanner
+
+`SkillSecurityScanner` is a pure static scanner that checks skill markdown content for high-confidence security patterns before the skill is loaded or published. It ports the upstream `scanSkillContent()` logic from `scripts/security-review.mjs`.
+
+### Running the Scanner
+
+```csharp
+using Squad.SDK.NET.Skills;
+
+// Scan in-memory content (e.g., loaded from a SKILL.md file)
+string content = await File.ReadAllTextAsync("skills/my-skill/SKILL.md");
+
+IReadOnlyList<SkillSecurityFinding> findings =
+    SkillSecurityScanner.ScanContent(content, "skills/my-skill/SKILL.md");
+
+if (findings.Count == 0)
+{
+    Console.WriteLine("No security issues found.");
+}
+else
+{
+    foreach (var finding in findings)
+    {
+        Console.WriteLine($"[{finding.Severity.ToUpper()}] {finding.Category}");
+        Console.WriteLine($"  File: {finding.File}, Line {finding.Line}");
+        Console.WriteLine($"  {finding.Message}");
+    }
+}
+```
+
+### Scanning a Directory
+
+```csharp
+// Load all skills and scan each one
+IReadOnlyList<SkillDefinition> skills =
+    await SkillLoader.LoadDirectoryAsync(".squad/skills");
+
+foreach (var skill in skills)
+{
+    // skill.Content holds the raw markdown loaded from disk
+    var findings = SkillSecurityScanner.ScanContent(
+        skill.Content, $".squad/skills/{skill.Id}/SKILL.md");
+
+    if (findings.Count > 0)
+    {
+        Console.WriteLine($"Security issues in skill '{skill.Name}':");
+        foreach (var f in findings)
+            Console.WriteLine($"  Line {f.Line}: {f.Message}");
+    }
+}
+```
+
+### Finding Categories
+
+| Category | Description |
+|---|---|
+| `skill-credentials` | Embedded credential tokens (AWS keys, GitHub PATs, OpenAI keys, JWTs, etc.) |
+| `skill-credential-file-read` | Instructions that read credential files (`.env`, `id_rsa`, `.aws/credentials`, etc.) |
+| `skill-download-exec` | Download-and-execute patterns (`curl | bash`, `irm | iex`, PowerShell encoded commands, etc.) |
+| `skill-privilege-escalation` | Privilege escalation commands (`sudo bash`, `chmod 777`, `Set-ExecutionPolicy Bypass`, etc.) |
+
+All findings have severity `"error"`.
+
+### Suppression Rules
+
+The scanner applies suppression to reduce false positives:
+
+- Lines inside **fenced code blocks** (` ``` ` or `~~~`) are skipped — they are documentation examples, not live instructions.
+- **Inline code spans** (backtick pairs) are stripped before matching.
+- **Markdown table rows** documenting regex patterns (e.g., a pattern-reference table) are suppressed for credential checks.
+- **Placeholder tokens** (`sk-...`, `ghp_xxxx`, `AKIA...`) are ignored.
+- **Fail-safe**: if a fenced block is unclosed, fence suppression is disabled and all content is scanned.
+
+### Integrating into CI
+
+```csharp
+// Example: scan all skills and fail if any findings are found
+var allFindings = new List<SkillSecurityFinding>();
+
+foreach (var skillFile in Directory.GetFiles(".squad/skills", "SKILL.md", SearchOption.AllDirectories))
+{
+    string content = await File.ReadAllTextAsync(skillFile);
+    allFindings.AddRange(SkillSecurityScanner.ScanContent(content, skillFile));
+}
+
+if (allFindings.Count > 0)
+{
+    Console.Error.WriteLine($"Security scan failed: {allFindings.Count} issue(s) found.");
+    foreach (var f in allFindings)
+        Console.Error.WriteLine($"  [{f.File}:{f.Line}] {f.Message}");
+
+    Environment.Exit(1);
+}
+```
+
+---
+
+## 12. Import/Export (Sharing)
 
 ### Exporting Squad Config to JSON
 
@@ -1328,7 +1426,7 @@ if (reimported is not null)
 
 ---
 
-## 12. Storage Providers
+## 13. Storage Providers
 
 ### IStorageProvider Interface
 
@@ -1450,7 +1548,7 @@ services.AddSquadSdk(
 
 ---
 
-## 13. Platform Detection
+## 14. Platform Detection
 
 ### Detecting Platform
 
@@ -1496,7 +1594,7 @@ var config = SquadBuilder.Create()
 
 ---
 
-## 14. Multi-Squad Management
+## 15. Multi-Squad Management
 
 ### Creating Personal Squads
 
@@ -1566,7 +1664,7 @@ bool worktree = SquadResolver.IsInsideWorktree();
 
 ---
 
-## 15. Casting Engine
+## 16. Casting Engine
 
 The casting engine assigns personas to agents from configurable "universes."
 
@@ -1633,7 +1731,7 @@ engine.UpdateConfig(rotateConfig);
 
 ---
 
-## 16. Advanced Patterns
+## 17. Advanced Patterns
 
 ### Combining Hooks with Event Bus for Audit Logging
 

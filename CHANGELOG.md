@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cost tracking and usage aggregation
 - Charter compiler (markdown + YAML frontmatter)
 - Skill registry and loader
+- Skill security scanner — static analysis of skill markdown for embedded credentials, download-execute patterns, and privilege escalation (ports upstream `scripts/security-review.mjs`)
 - Platform detection (OS, terminal, IDE)
 - Import/export for portable squad configurations
 - RemoteBridge with IAsyncDisposable for proper resource cleanup
@@ -26,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SourceLink and symbol packages for source-level debugging
 - Deterministic builds with TreatWarningsAsErrors
 - Comprehensive XML documentation on all public APIs
-- 474+ unit tests across 20+ test classes
+- 582+ unit tests across 21+ test classes
 
 ### Infrastructure
 - Multi-OS CI matrix (Ubuntu + Windows) with code coverage
