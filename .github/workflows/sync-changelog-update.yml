@@ -1,0 +1,120 @@
+name: "Sync: Update CHANGELOG on Completion"
+
+on:
+  issues:
+    types: [closed]
+
+concurrency:
+  group: sync-changelog-update
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  update-changelog:
+    runs-on: ubuntu-latest
+    # Only run when a sync phase issue (dev or insider) is closed and contains our marker
+    if: |
+      (contains(github.event.issue.labels.*.name, 'sync:dev') ||
+       contains(github.event.issue.labels.*.name, 'sync:insider')) &&
+      contains(github.event.issue.body, '<!-- sync-issue-marker -->')
+
+    steps:
+      - name: Checkout dev branch
+        uses: actions/checkout@v4
+        with:
+          ref: dev
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Update CHANGELOG
+        uses: actions/github-script@v8
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        with:
+          script: |
+            const fs = require('fs');
+
+            const issueBody = process.env.ISSUE_BODY || '';
+            const issueNumber = process.env.ISSUE_NUMBER;
+            const labels = context.payload.issue.labels.map(l => l.name);
+            const isSyncDev = labels.includes('sync:dev');
+            const UPSTREAM = 'bradygaster/squad';
+
+            // Extract a SHA embedded as <!-- marker: <sha> --> in the issue body
+            const extractSha = (body, marker) => {
+              const regex = new RegExp(`<!-- ${marker}: ([a-f0-9]+) -->`);
+              const m = body.match(regex);
+              return m ? m[1] : null;
+            };
+
+            const sha = isSyncDev
+              ? extractSha(issueBody, 'dev-target-sha')
+              : extractSha(issueBody, 'insider-target-sha');
+
+            const upstreamBranch = isSyncDev ? 'dev' : 'insider';
+            const shaShort = sha ? sha.substring(0, 7) : 'unknown';
+            const shaLink = sha
+              ? `[\`${shaShort}\`](https://github.com/${UPSTREAM}/commit/${sha})`
+              : `\`${shaShort}\``;
+
+            const syncLine = `- Synced upstream \`${upstreamBranch}\`@${shaLink} (closes #${issueNumber})`;
+
+            // ── Patch CHANGELOG.md ──────────────────────────────────────────────
+            let changelog = fs.readFileSync('CHANGELOG.md', 'utf8');
+
+            const UNRELEASED = '## [Unreleased]';
+            const SYNC_H = '### Sync';
+
+            if (changelog.includes(UNRELEASED)) {
+              if (changelog.includes(SYNC_H)) {
+                // Prepend under the existing ### Sync heading
+                changelog = changelog.replace(
+                  SYNC_H + '\n',
+                  `${SYNC_H}\n${syncLine}\n`
+                );
+              } else {
+                // Add ### Sync section at the top of [Unreleased]
+                changelog = changelog.replace(
+                  UNRELEASED + '\n',
+                  `${UNRELEASED}\n\n${SYNC_H}\n${syncLine}\n`
+                );
+              }
+            } else {
+              // Insert [Unreleased] block before the first versioned entry
+              const firstVerIdx = changelog.search(/^## \[/m);
+              const entry = `${UNRELEASED}\n\n${SYNC_H}\n${syncLine}\n\n`;
+              changelog = firstVerIdx >= 0
+                ? changelog.slice(0, firstVerIdx) + entry + changelog.slice(firstVerIdx)
+                : changelog + '\n' + entry;
+            }
+
+            fs.writeFileSync('CHANGELOG.md', changelog);
+            core.info(`CHANGELOG updated: ${syncLine}`);
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          if git diff --staged --quiet; then
+            echo "No changelog changes to commit"
+          else
+            git commit -m "chore: record sync in CHANGELOG (closes #${{ github.event.issue.number }})"
+            git push origin dev
+          fi
+
+      - name: Comment on closed issue
+        uses: actions/github-script@v8
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              body: '📝 **CHANGELOG updated** — a sync entry has been recorded on the `dev` branch.',
+            });
+            core.info('Posted CHANGELOG update comment on issue');
