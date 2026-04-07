@@ -1,11 +1,11 @@
 {
   "upstream": "bradygaster/squad",
   "dev": {
-    "lastPortedSha": "dde77f69fb58615881f36239e59b7a7450137d50",
-    "lastChecked": "2026-04-07T16:49:50.864Z"
+    "lastPortedSha": null,
+    "lastChecked": null
   },
   "insider": {
     "lastPortedSha": "88d1696a46440db01a3df4d93166f4ae3f3e2731",
-    "lastChecked": "2026-04-07T16:49:50.864Z"
+    "lastChecked": "2026-04-07T17:19:37.635Z"
   }
 }
