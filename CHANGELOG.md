@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- `SkillSecurityScanner` — static analysis for skill markdown files; detects hardcoded credentials, credential file reads, download-and-execute patterns, and privilege escalation attempts (ports upstream `scripts/security-review.mjs` Phase 1 patterns)
+- 70 new unit tests for `SkillSecurityScanner` (582 total)
+- Compiled close-fence regex cache in `ConcurrentDictionary` to avoid recompilation on repeated calls
+
+### Infrastructure
+- Two-phase upstream sync workflow: `sync-check.yml` (Phase 1 — detect upstream `dev`/`insider` changes, open/update sync issue) and `sync-insider-cherry-pick.yml` (Phase 2 — cherry-pick insider changes after dev port)
+- Squad automation workflows: `squad-triage.yml`, `squad-issue-assign.yml`, `squad-heartbeat.yml` (Ralph), `sync-squad-labels.yml`
+- Sync state tracking in `.sync/upstream-state.json` with `dev.lastPortedSha` / `insider.lastPortedSha`
+
 ## [0.1.0] - 2026-04-04
 
 ### Added

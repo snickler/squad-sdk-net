@@ -39,6 +39,20 @@ dotnet test
 5. **Ensure all tests pass** (`dotnet test`)
 6. **Submit a PR** against `main`
 
+## Branch Model
+
+| Branch | Purpose |
+|--------|---------|
+| `main` | Stable, released code |
+| `dev` | Active development — tracks upstream `bradygaster/squad` `dev` branch |
+| `insider` | Preview features — tracks upstream `insider` branch |
+
+Upstream changes are ported via the [two-phase sync workflow](.github/workflows/sync-check.yml):
+1. **Phase 1** (`sync-check.yml`) — detects new commits on upstream `dev`/`insider` and opens a sync issue
+2. **Phase 2** (`sync-insider-cherry-pick.yml`) — triggered when the Phase 1 issue closes; creates an insider cherry-pick issue
+
+Sync state is tracked in `.sync/upstream-state.json`.
+
 ### PR Guidelines
 
 - Keep PRs focused — one feature or fix per PR

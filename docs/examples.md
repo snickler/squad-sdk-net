@@ -1267,6 +1267,99 @@ string? content = registry.LoadContent("testing-skill");
 registry.Unregister("testing-skill");
 ```
 
+### Skill Security Scanner
+
+The `SkillSecurityScanner` performs static analysis on skill markdown content to detect common security anti-patterns before skills are loaded into the registry. It ports the security review patterns from the upstream [`bradygaster/squad`](https://github.com/bradygaster/squad) project.
+
+```csharp
+using Squad.SDK.NET.Skills;
+
+// Scan a skill file on disk
+IReadOnlyList<SkillSecurityFinding> findings =
+    SkillSecurityScanner.ScanContent(
+        content: File.ReadAllText("skills/deploy/SKILL.md"),
+        filePath: "skills/deploy/SKILL.md");
+
+if (findings.Count == 0)
+{
+    Console.WriteLine("No security issues found.");
+}
+else
+{
+    foreach (var finding in findings)
+    {
+        Console.WriteLine($"[{finding.Severity}] {finding.Pattern} — {finding.Description}");
+        Console.WriteLine($"  File: {finding.FilePath}");
+    }
+}
+```
+
+**Detection patterns (Phase 1):**
+
+| Pattern | What It Flags |
+|---------|---------------|
+| `credentials` | Hardcoded secrets, API keys, passwords, tokens |
+| `cred-file-reads` | Reading `.env`, `~/.aws/credentials`, `~/.ssh` keys, etc. |
+| `download-exec` | `curl`/`wget` piped to `bash`, or fetching and executing arbitrary scripts |
+| `priv-escalation` | `sudo`, `chmod 777`, `chown root`, `visudo`, etc. |
+
+#### Integrating with Skill Loading
+
+Scan skills as part of your loading pipeline to reject unsafe content:
+
+```csharp
+using Squad.SDK.NET.Skills;
+
+async Task<SkillDefinition?> LoadVerifiedSkillAsync(string path)
+{
+    string content = await File.ReadAllTextAsync(path);
+
+    var findings = SkillSecurityScanner.ScanContent(content, path);
+    if (findings.Count > 0)
+    {
+        foreach (var f in findings)
+            Console.Error.WriteLine($"SECURITY: [{f.Severity}] {f.Pattern}: {f.Description}");
+
+        return null; // reject the skill
+    }
+
+    return await SkillLoader.LoadAsync(path);
+}
+
+// Use it:
+SkillDefinition? skill = await LoadVerifiedSkillAsync(".squad/skills/deploy/SKILL.md");
+if (skill is not null)
+{
+    registry.Register(skill);
+}
+```
+
+#### Bulk Scanning a Skills Directory
+
+```csharp
+using Squad.SDK.NET.Skills;
+
+var allFindings = new List<SkillSecurityFinding>();
+
+foreach (string skillFile in Directory.EnumerateFiles(".squad/skills", "SKILL.md", SearchOption.AllDirectories))
+{
+    string content = await File.ReadAllTextAsync(skillFile);
+    var findings = SkillSecurityScanner.ScanContent(content, skillFile);
+    allFindings.AddRange(findings);
+}
+
+if (allFindings.Count == 0)
+{
+    Console.WriteLine("All skills passed security review.");
+}
+else
+{
+    Console.WriteLine($"{allFindings.Count} security issue(s) found:");
+    foreach (var f in allFindings)
+        Console.WriteLine($"  [{f.Severity}] {f.FilePath}: {f.Pattern} — {f.Description}");
+}
+```
+
 ---
 
 ## 11. Import/Export (Sharing)

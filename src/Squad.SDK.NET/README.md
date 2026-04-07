@@ -20,6 +20,7 @@ Squad.SDK.NET is a .NET port of [@bradygaster/squad-sdk](https://github.com/brad
 - **Cost tracking and usage aggregation** across sessions and models
 - **Charter compiler** — parses markdown + YAML frontmatter into `AgentCharter` objects
 - **Skill registry and loader** for extensible agent capabilities
+- **Skill security scanner** — static analysis of skill markdown for credentials, exec patterns, and privilege escalation (ports upstream security-review patterns)
 - **Platform detection** — OS, terminal, and IDE awareness
 - **Import/export** for sharing squad configurations as portable JSON
 - **Full AOT / Native AOT compatibility** — zero reflection, zero dynamic code generation
@@ -337,6 +338,13 @@ Registered services:
 │  SquadBuilder  │ │ Import/Export  │ │ PlatformDetector│
 │ (fluent config)│ │ (sharing JSON) │ │  (OS/IDE/term)  │
 └────────────────┘ └────────────────┘ └─────────────────┘
+
+┌──────────────────────────────────────────┐
+│         SkillSecurityScanner             │
+│  • Static analysis of skill markdown     │
+│  • Detects credentials, exec patterns,  │
+│    cred file reads, priv escalation      │
+└──────────────────────────────────────────┘
 ```
 
 ## AOT Readiness
@@ -355,7 +363,7 @@ Squad.SDK.NET is fully compatible with .NET Native AOT publishing:
 
 ## Testing
 
-The SDK includes a comprehensive test suite with 20+ test classes and 474+ test cases (and growing):
+The SDK includes a comprehensive test suite with 20+ test classes and 582+ test cases (and growing):
 
 ```
 Squad.SDK.NET.Tests/
@@ -375,6 +383,7 @@ Squad.SDK.NET.Tests/
 ├── ServiceCollectionExtensionsTests.cs — DI registration
 ├── SessionPoolTests.cs               — Session pool lifecycle
 ├── SkillRegistryTests.cs             — Skill loading and lookup
+├── SkillSecurityScannerTests.cs      — Skill security scanning patterns
 ├── SquadBuilderTests.cs              — Fluent builder validation
 ├── SquadClientIdempotencyTests.cs    — Client idempotency
 ├── StorageStateResolutionTests.cs    — Storage state resolution
