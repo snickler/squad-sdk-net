@@ -244,46 +244,64 @@ jobs:
               '> Our `insider` branch only implements up to the upstream `insider` branch\'s latest commit set.',
             );
 
-            const title = `Sync: upstream changes detected — ${date}`;
+            const title = `Sync: upstream dev changes — ${date}`;
             const body = [
               ISSUE_MARKER,
               `<!-- dev-target-sha: ${devHead} -->`,
               `<!-- insider-target-sha: ${insiderHead} -->`,
+              `<!-- our-dev-head: ${ourDevHead || 'unknown'} -->`,
               '',
-              `New changes detected in [${UPSTREAM}](https://github.com/${UPSTREAM}) that need to be ported to our .NET implementation.`,
+              `📦 **Phase 1: Port upstream \`dev\` changes**`,
               '',
-              '> **When porting is complete:**',
-              '> 1. Update `.sync/upstream-state.json` with the new target SHAs listed below',
-              '> 2. Verify builds pass on both `dev` and `insider` branches',
-              '> 3. Close this issue',
+              `New changes detected in [${UPSTREAM}](https://github.com/${UPSTREAM}) \`dev\` branch that need to be ported to our .NET implementation.`,
+              '',
+              '> **Instructions:**',
+              '> 1. Port the `dev` branch commits listed below to our `dev` branch',
+              '> 2. Reference upstream commit SHAs in your commit messages when practical (e.g., "Port feature X (upstream/dev@a1b2c3d)")',
+              '> 3. Update `dev.lastPortedSha` in `.sync/upstream-state.json` to the target SHA below',
+              '> 4. Verify builds pass on `dev`',
+              '> 5. Close this issue — the insider sync (phase 2) will trigger automatically',
               '',
               devSection,
               '',
-              insiderSection,
+              '---',
               '',
               deltaSection.join('\n'),
               '',
-              '## Sync State',
+              '> 📌 **Context:** The delta above shows what\'s in upstream `dev` but NOT in `insider`.',
+              '> This helps you understand the insider boundary when porting.',
+              '> Phase 2 (insider sync) will determine which of your dev commits to cherry-pick.',
+              '',
+              '## 📊 Sync State',
               '',
               '| Branch | Our Tracked SHA | Upstream HEAD | Status |',
               '|--------|----------------|---------------|--------|',
-              `| dev | \`${trackedDev?.substring(0, 7) || 'none'}\` | \`${devHead.substring(0, 7)}\` | ${devChanged ? '🔴 Changes pending' : '✅ Up to date'} |`,
-              `| insider | \`${trackedInsider?.substring(0, 7) || 'none'}\` | \`${insiderHead.substring(0, 7)}\` | ${insiderChanged ? '🔴 Changes pending' : '✅ Up to date'} |`,
+              `| dev | \`${trackedDev?.substring(0, 7) || 'none'}\` | \`${devHead.substring(0, 7)}\` | 🔴 Changes pending |`,
+              `| insider | \`${trackedInsider?.substring(0, 7) || 'none'}\` | \`${insiderHead.substring(0, 7)}\` | ⏸️ Handled in phase 2 |`,
               '',
               '## ✅ Completion Checklist',
               '',
-              devChanged ? '- [ ] Port `dev` branch changes to our `dev` branch' : '- [x] `dev` branch — already up to date',
-              insiderChanged ? '- [ ] Port `insider` branch changes to our `insider` branch' : '- [x] `insider` branch — already up to date',
-              '- [ ] Update `.sync/upstream-state.json` with new SHAs:',
-              `  - \`dev.lastPortedSha\` → \`${devHead}\``,
-              `  - \`insider.lastPortedSha\` → \`${insiderHead}\``,
-              '- [ ] Verify builds pass on both branches',
+              '- [ ] Port upstream `dev` commits to our `dev` branch',
+              `- [ ] Update \`.sync/upstream-state.json\`: set \`dev.lastPortedSha\` → \`${devHead}\``,
+              '- [ ] Verify build passes on `dev` branch',
+              '- [ ] Close this issue (phase 2 will auto-trigger)',
             ].join('\n');
 
+            // === Phase 1: Create dev-only sync issue ===
+            // Skip if ONLY insider changed (handled by phase 2)
+            if (!devChanged) {
+              core.info('Only insider branch changed — skipped (phase 2 handles insider independently)');
+              return;
+            }
+
+            // Capture our current dev branch HEAD for phase 2
+            const ourDevHead = runOrFail('git rev-parse origin/dev', 'Resolve origin/dev');
+            if (!ourDevHead) {
+              core.warning('Could not resolve origin/dev — using placeholder for dev head marker');
+            }
+
             // === Determine labels ===
-            const labels = ['sync', 'squad', 'squad:copilot'];
-            if (devChanged) labels.push('sync:dev');
-            if (insiderChanged) labels.push('sync:insider');
+            const labels = ['sync', 'sync:dev', 'squad', 'squad:copilot'];
 
             // === Ensure labels exist (race-safe: ignore 422) ===
             const labelDefs = {
