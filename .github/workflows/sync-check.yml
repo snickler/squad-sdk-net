@@ -1,20 +1,13 @@
-name: Sync Check (Upstream)
+name: "Sync Check: Upstream"
 
 on:
-  workflow_call:
-    inputs:
-      upstream-repo:
-        description: 'Upstream repo in owner/repo format'
-        type: string
-        default: 'bradygaster/squad'
-      upstream-branch:
-        description: 'Branch to monitor on the upstream repo'
-        required: true
-        type: string
-      sync-label:
-        description: 'Branch-specific sync label (e.g., sync:dev)'
-        required: true
-        type: string
+  schedule:
+    - cron: '0 8 * * 1-5'   # Weekdays at 08:00 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: sync-check-upstream
+  cancel-in-progress: true
 
 permissions:
   issues: write
@@ -24,188 +17,284 @@ jobs:
   check-upstream:
     runs-on: ubuntu-latest
     steps:
-      - name: Check upstream for new commits
+      - name: Checkout (read tracking state)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Fetch upstream branches
+        run: |
+          git remote add upstream https://github.com/bradygaster/squad.git
+          git fetch upstream dev insider --no-tags
+
+      - name: Check upstream and create or update sync issue
         uses: actions/github-script@v8
-        env:
-          UPSTREAM_REPO: ${{ inputs.upstream-repo }}
-          UPSTREAM_BRANCH: ${{ inputs.upstream-branch }}
-          SYNC_LABEL: ${{ inputs.sync-label }}
         with:
           script: |
-            const [upstreamOwner, upstreamRepo] = process.env.UPSTREAM_REPO.split('/');
-            const upstreamBranch = process.env.UPSTREAM_BRANCH;
-            const syncLabel = process.env.SYNC_LABEL;
-            const baseLabels = ['sync', 'squad', syncLabel];
+            const { execSync } = require('child_process');
+            const fs = require('fs');
 
-            // 1. Get the latest commit SHA on the upstream branch
-            let latestSha;
-            try {
-              const { data: branch } = await github.rest.repos.getBranch({
-                owner: upstreamOwner,
-                repo: upstreamRepo,
-                branch: upstreamBranch,
-              });
-              latestSha = branch.commit.sha;
-            } catch (err) {
-              core.setFailed(`Could not fetch upstream branch '${upstreamBranch}': ${err.message}`);
-              return;
-            }
+            // === Configuration ===
+            const UPSTREAM = 'bradygaster/squad';
+            const TRACKING_FILE = '.sync/upstream-state.json';
+            const ISSUE_MARKER = '<!-- sync-issue-marker -->';
 
-            core.info(`Upstream ${upstreamBranch} HEAD: ${latestSha}`);
-
-            // 2. Check for an existing open sync issue — avoid duplicates
-            const { data: openResults } = await github.rest.issues.listForRepo({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              labels: ['sync', syncLabel].join(','),
-              state: 'open',
-              per_page: 5,
-            });
-
-            const openIssues = openResults.filter(i => !i.pull_request);
-            if (openIssues.length > 0) {
-              core.info(`Open sync issue already exists: #${openIssues[0].number} — skipping`);
-              return;
-            }
-
-            // 3. Find the last synced SHA from the most recent closed sync issue
-            let lastSyncedSha = null;
-            const { data: closedResults } = await github.rest.issues.listForRepo({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              labels: ['sync', syncLabel].join(','),
-              state: 'closed',
-              sort: 'created',
-              direction: 'desc',
-              per_page: 5,
-            });
-
-            const closedIssues = closedResults.filter(i => !i.pull_request);
-            for (const issue of closedIssues) {
-              if (issue.body) {
-                const match = issue.body.match(/<!-- upstream-sha: ([a-f0-9]+) -->/);
-                if (match) {
-                  lastSyncedSha = match[1];
-                  core.info(`Last synced SHA: ${lastSyncedSha} (from issue #${issue.number})`);
-                  break;
-                }
-              }
-            }
-
-            // 4. Short-circuit if nothing changed
-            if (lastSyncedSha === latestSha) {
-              core.info('No new commits since last sync check');
-              return;
-            }
-
-            // 5. Get the commit diff
-            let commits = [];
-            let filesChanged = [];
-            let totalCommits = 0;
-
-            if (lastSyncedSha) {
+            const run = (cmd) => {
               try {
-                const { data: comparison } = await github.rest.repos.compareCommits({
-                  owner: upstreamOwner,
-                  repo: upstreamRepo,
-                  base: lastSyncedSha,
-                  head: latestSha,
-                });
-                commits = comparison.commits;
-                filesChanged = comparison.files || [];
-                totalCommits = comparison.total_commits || commits.length;
+                return execSync(cmd, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
               } catch (err) {
-                // Only fall back for divergence errors (404/409); fail on transient errors
-                if (err.status === 404 || err.status === 409) {
-                  core.warning(`Comparison failed (diverged history?): ${err.message} — falling back to recent commits`);
-                  const { data: recent } = await github.rest.repos.listCommits({
-                    owner: upstreamOwner,
-                    repo: upstreamRepo,
-                    sha: upstreamBranch,
-                    per_page: 20,
-                  });
-                  commits = recent;
-                  totalCommits = commits.length;
-                } else {
-                  core.setFailed(`GitHub API error during comparison: ${err.message}`);
-                  return;
-                }
+                return null;
               }
-            } else {
-              // First sync — grab recent commits for context
-              const { data: recent } = await github.rest.repos.listCommits({
-                owner: upstreamOwner,
-                repo: upstreamRepo,
-                sha: upstreamBranch,
-                per_page: 20,
-              });
-              commits = recent;
-              totalCommits = commits.length;
-            }
+            };
 
-            if (commits.length === 0) {
-              core.info('No new commits found');
-              return;
-            }
+            const runOrFail = (cmd, context) => {
+              try {
+                return execSync(cmd, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+              } catch (err) {
+                core.setFailed(`${context}: ${err.message}`);
+                return null;
+              }
+            };
 
-            // 6. Build the issue body
-            const date = new Date().toISOString().split('T')[0];
-
-            // Sanitize commit messages — escape @ mentions to avoid pinging
             const sanitize = (msg) => msg.replace(/@/g, '`@`');
 
-            const commitList = commits.slice(0, 30).map(c => {
-              const msg = sanitize(c.commit.message.split('\n')[0]);
-              const sha = c.sha.substring(0, 7);
-              return `- [\`${sha}\`](https://github.com/${upstreamOwner}/${upstreamRepo}/commit/${c.sha}) ${msg}`;
-            }).join('\n');
+            // === Read tracking state ===
+            let state = {
+              upstream: UPSTREAM,
+              dev: { lastPortedSha: null, lastChecked: null },
+              insider: { lastPortedSha: null, lastChecked: null }
+            };
 
-            let filesSummary = '';
-            if (filesChanged.length > 0) {
-              const list = filesChanged.slice(0, 50).map(f =>
-                `- \`${f.filename}\` (+${f.additions}/-${f.deletions})`
-              ).join('\n');
-              const overflow = filesChanged.length > 50
-                ? `\n- _... and ${filesChanged.length - 50} more files_`
-                : '';
-              filesSummary = `\n### Files Changed (${filesChanged.length})\n\n${list}${overflow}`;
+            try {
+              if (fs.existsSync(TRACKING_FILE)) {
+                state = JSON.parse(fs.readFileSync(TRACKING_FILE, 'utf8'));
+                core.info('Loaded tracking state from .sync/upstream-state.json');
+              } else {
+                core.warning('Tracking file not found — running in bootstrap mode');
+              }
+            } catch (err) {
+              core.warning(`Could not parse tracking file: ${err.message} — running in bootstrap mode`);
             }
 
-            const title = `Sync: upstream ${upstreamBranch} changes detected — ${date}`;
+            // === Resolve upstream HEADs ===
+            const devHead = runOrFail('git rev-parse upstream/dev', 'Resolve upstream/dev');
+            if (!devHead) return;
+
+            const insiderHead = runOrFail('git rev-parse upstream/insider', 'Resolve upstream/insider');
+            if (!insiderHead) return;
+
+            core.info(`Upstream dev HEAD:     ${devHead.substring(0, 7)}`);
+            core.info(`Upstream insider HEAD: ${insiderHead.substring(0, 7)}`);
+
+            const trackedDev = state.dev?.lastPortedSha || null;
+            const trackedInsider = state.insider?.lastPortedSha || null;
+
+            core.info(`Tracked dev:     ${trackedDev?.substring(0, 7) || '(none)'}`);
+            core.info(`Tracked insider: ${trackedInsider?.substring(0, 7) || '(none)'}`);
+
+            const devChanged = devHead !== trackedDev;
+            const insiderChanged = insiderHead !== trackedInsider;
+
+            if (!devChanged && !insiderChanged) {
+              core.info('No new upstream changes — both branches match tracked state');
+              return;
+            }
+
+            // === Helper: check if a SHA exists in fetched history ===
+            function shaExists(sha) {
+              return run(`git cat-file -e ${sha}`) !== null;
+            }
+
+            // === Analyze each branch ===
+            function analyzeBranch(name, trackedSha, headSha) {
+              const changed = headSha !== trackedSha;
+              const result = {
+                name,
+                changed,
+                headSha,
+                trackedSha,
+                commits: [],
+                diffStat: '',
+                needsRebaseline: false,
+                isBootstrap: false,
+              };
+
+              if (!changed) return result;
+
+              if (trackedSha && shaExists(trackedSha)) {
+                const log = run(`git log --format="%H %s" ${trackedSha}..upstream/${name}`);
+                result.commits = log ? log.split('\n').filter(Boolean) : [];
+                result.diffStat = run(`git diff --stat ${trackedSha}..upstream/${name}`) || '';
+              } else if (trackedSha) {
+                result.needsRebaseline = true;
+                core.warning(`Tracked SHA ${trackedSha.substring(0, 7)} not found on upstream/${name} — history may have been rewritten`);
+              } else {
+                result.isBootstrap = true;
+                const log = run(`git log --format="%H %s" -20 upstream/${name}`);
+                result.commits = log ? log.split('\n').filter(Boolean) : [];
+              }
+
+              return result;
+            }
+
+            const dev = analyzeBranch('dev', trackedDev, devHead);
+            const insider = analyzeBranch('insider', trackedInsider, insiderHead);
+
+            // === Compute upstream dev ↔ insider delta ===
+            const deltaLog = run('git log --format="%H %s" upstream/insider..upstream/dev');
+            const deltaStat = run('git diff --stat upstream/insider..upstream/dev');
+
+            // === Format helpers ===
+            function formatCommits(entries) {
+              if (!entries.length) return '_No commits to display_';
+              return entries.slice(0, 30).map(line => {
+                const spaceIdx = line.indexOf(' ');
+                const sha = line.substring(0, spaceIdx);
+                const msg = sanitize(line.substring(spaceIdx + 1));
+                return `- [\`${sha.substring(0, 7)}\`](https://github.com/${UPSTREAM}/commit/${sha}) ${msg}`;
+              }).join('\n') + (entries.length > 30 ? `\n- _… and ${entries.length - 30} more commits_` : '');
+            }
+
+            function buildBranchSection(branch) {
+              const emoji = branch.name === 'dev' ? '📦' : '🔒';
+              const header = `## ${emoji} \`${branch.name}\` Branch`;
+
+              if (!branch.changed) {
+                return `${header}\n\n✅ No new upstream changes since \`${branch.trackedSha?.substring(0, 7) || 'N/A'}\`.`;
+              }
+
+              if (branch.needsRebaseline) {
+                return [
+                  `${header} — ⚠️ Re-baseline Required`,
+                  '',
+                  `Our tracked SHA \`${branch.trackedSha.substring(0, 7)}\` was **not found** on upstream \`${branch.name}\`.`,
+                  'This likely means the upstream branch was force-pushed or its history was rewritten.',
+                  '',
+                  '**Action required:** Review the upstream branch and update `.sync/upstream-state.json` with a valid baseline SHA.',
+                  '',
+                  `| Field | Value |`,
+                  `|-------|-------|`,
+                  `| Upstream HEAD | \`${branch.headSha.substring(0, 7)}\` |`,
+                  `| Our tracked SHA | \`${branch.trackedSha.substring(0, 7)}\` (missing) |`,
+                ].join('\n');
+              }
+
+              const parts = [`${header}: Changes to Port`, ''];
+
+              if (branch.isBootstrap) {
+                parts.push(
+                  '> **Initial sync** — No previous baseline recorded. Showing recent commits for context.',
+                  '> After porting, set `lastPortedSha` in `.sync/upstream-state.json` to the SHA you ported up to.',
+                  ''
+                );
+              } else {
+                parts.push(
+                  `Our \`${branch.name}\` branch is based on upstream commit \`${branch.trackedSha.substring(0, 7)}\`.`,
+                  ''
+                );
+              }
+
+              parts.push(
+                `Upstream \`${branch.name}\` HEAD: \`${branch.headSha.substring(0, 7)}\` — **${branch.commits.length}** new commit${branch.commits.length !== 1 ? 's' : ''}.`,
+                '',
+                '### Commits',
+                '',
+                formatCommits(branch.commits),
+              );
+
+              if (branch.diffStat) {
+                parts.push('', '### Files Changed', '', '```', branch.diffStat, '```');
+              }
+
+              return parts.join('\n');
+            }
+
+            // === Build issue body ===
+            const date = new Date().toISOString().split('T')[0];
+
+            const devSection = buildBranchSection(dev);
+            const insiderSection = buildBranchSection(insider);
+
+            // Dev ↔ insider delta section
+            const deltaCommits = deltaLog ? deltaLog.split('\n').filter(Boolean) : [];
+            const deltaSection = [
+              '## 🔀 Upstream `dev` ↔ `insider` Delta',
+              '',
+              'Changes in upstream `dev` that are **not** in upstream `insider`:',
+              '',
+            ];
+
+            if (deltaCommits.length > 0) {
+              deltaSection.push(
+                '### Commits',
+                '',
+                formatCommits(deltaCommits),
+              );
+            } else {
+              deltaSection.push('_Branches are identical — no delta._');
+            }
+
+            if (deltaStat) {
+              deltaSection.push('', '### File Diff', '', '```', deltaStat, '```');
+            }
+
+            deltaSection.push(
+              '',
+              '> **Branching model:** Our `dev` branch always has the latest upstream changes.',
+              '> Our `insider` branch only implements up to the upstream `insider` branch\'s latest commit set.',
+            );
+
+            const title = `Sync: upstream changes detected — ${date}`;
             const body = [
-              `<!-- upstream-sha: ${latestSha} -->`,
+              ISSUE_MARKER,
+              `<!-- dev-target-sha: ${devHead} -->`,
+              `<!-- insider-target-sha: ${insiderHead} -->`,
               '',
-              `New changes detected on [\`${upstreamBranch}\`](https://github.com/${upstreamOwner}/${upstreamRepo}/tree/${upstreamBranch}) in [${upstreamOwner}/${upstreamRepo}](https://github.com/${upstreamOwner}/${upstreamRepo}).`,
+              `New changes detected in [${UPSTREAM}](https://github.com/${UPSTREAM}) that need to be ported to our .NET implementation.`,
               '',
-              `### Upstream Commits (${totalCommits})`,
+              '> **When porting is complete:**',
+              '> 1. Update `.sync/upstream-state.json` with the new target SHAs listed below',
+              '> 2. Verify builds pass on both `dev` and `insider` branches',
+              '> 3. Close this issue',
               '',
-              commitList,
-              totalCommits > 30 ? `\n_... and ${totalCommits - 30} more commits_` : '',
-              filesSummary,
+              devSection,
               '',
-              '### Sync Details',
+              insiderSection,
               '',
-              '| Field | Value |',
-              '|-------|-------|',
-              `| Upstream repo | \`${upstreamOwner}/${upstreamRepo}\` |`,
-              `| Branch | \`${upstreamBranch}\` |`,
-              `| Latest SHA | \`${latestSha.substring(0, 7)}\` |`,
-              lastSyncedSha ? `| Previous SHA | \`${lastSyncedSha.substring(0, 7)}\` |` : '| Previous SHA | _first sync check_ |',
-              `| Detected | ${date} |`,
+              deltaSection.join('\n'),
               '',
-              '---',
-              '> Close this issue once changes have been reviewed and ported to the .NET project.',
+              '## Sync State',
+              '',
+              '| Branch | Our Tracked SHA | Upstream HEAD | Status |',
+              '|--------|----------------|---------------|--------|',
+              `| dev | \`${trackedDev?.substring(0, 7) || 'none'}\` | \`${devHead.substring(0, 7)}\` | ${devChanged ? '🔴 Changes pending' : '✅ Up to date'} |`,
+              `| insider | \`${trackedInsider?.substring(0, 7) || 'none'}\` | \`${insiderHead.substring(0, 7)}\` | ${insiderChanged ? '🔴 Changes pending' : '✅ Up to date'} |`,
+              '',
+              '## ✅ Completion Checklist',
+              '',
+              devChanged ? '- [ ] Port `dev` branch changes to our `dev` branch' : '- [x] `dev` branch — already up to date',
+              insiderChanged ? '- [ ] Port `insider` branch changes to our `insider` branch' : '- [x] `insider` branch — already up to date',
+              '- [ ] Update `.sync/upstream-state.json` with new SHAs:',
+              `  - \`dev.lastPortedSha\` → \`${devHead}\``,
+              `  - \`insider.lastPortedSha\` → \`${insiderHead}\``,
+              '- [ ] Verify builds pass on both branches',
             ].join('\n');
 
-            // 7. Ensure required labels exist (race-safe: ignore 422 on create)
+            // === Determine labels ===
+            const labels = ['sync', 'squad', 'squad:copilot'];
+            if (devChanged) labels.push('sync:dev');
+            if (insiderChanged) labels.push('sync:insider');
+
+            // === Ensure labels exist (race-safe: ignore 422) ===
             const labelDefs = {
               'sync':          { color: 'F9D0C4', description: 'Upstream sync tracking' },
               'sync:dev':      { color: 'FEF2C0', description: 'Changes on upstream dev branch' },
-              'sync:insider': { color: 'C2E0C6', description: 'Changes on upstream insider branch' },
+              'sync:insider':  { color: 'C2E0C6', description: 'Changes on upstream insider branch' },
               'squad':         { color: '9B8FCC', description: 'Squad triage inbox' },
+              'squad:copilot': { color: '0E8A16', description: 'Assigned to Copilot coding agent' },
             };
 
-            for (const label of baseLabels) {
+            for (const label of labels) {
               try {
                 await github.rest.issues.getLabel({
                   owner: context.repo.owner,
@@ -225,24 +314,53 @@ jobs:
                     });
                     core.info(`Created label: ${label}`);
                   } catch (createErr) {
-                    // 422 means another run already created it — safe to ignore
                     if (createErr.status !== 422) {
                       core.warning(`Could not create label '${label}': ${createErr.message}`);
                     }
                   }
-                } else {
-                  core.warning(`Could not verify label '${label}': ${err.message}`);
                 }
               }
             }
 
-            // 8. Create the sync issue
-            const { data: newIssue } = await github.rest.issues.create({
+            // === Create or update sync issue ===
+            const { data: openResults } = await github.rest.issues.listForRepo({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title,
-              body,
-              labels: baseLabels,
+              labels: 'sync',
+              state: 'open',
+              per_page: 10,
             });
 
-            core.info(`Created sync issue #${newIssue.number}: ${title}`);
+            const existingIssue = openResults
+              .filter(i => !i.pull_request)
+              .find(i => i.body?.includes(ISSUE_MARKER));
+
+            if (existingIssue) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existingIssue.number,
+                title,
+                body,
+                labels,
+              });
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existingIssue.number,
+                body: `🔄 **Sync state refreshed** — ${date}\n\nNew upstream changes detected since last check. Issue body updated with latest diff.`,
+              });
+
+              core.info(`Updated existing sync issue #${existingIssue.number}`);
+            } else {
+              const { data: newIssue } = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels,
+              });
+
+              core.info(`Created sync issue #${newIssue.number}: ${title}`);
+            }
