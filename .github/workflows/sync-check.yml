@@ -130,7 +130,7 @@ jobs:
                 core.warning(`Tracked SHA ${trackedSha.substring(0, 7)} not found on upstream/${name} — history may have been rewritten`);
               } else {
                 result.isBootstrap = true;
-                const log = run(`git log --format="%H %s" -20 upstream/${name}`);
+                const log = run(`git log --format="%H %s" -50 upstream/${name}`);
                 result.commits = log ? log.split('\n').filter(Boolean) : [];
               }
 
