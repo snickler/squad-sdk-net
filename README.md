@@ -46,7 +46,7 @@ squad-sdk-net/
 │       ├── Tools/              # Built-in tool definitions
 │       └── Utils/              # String utilities
 ├── tests/
-│   └── Squad.SDK.NET.Tests/    # Unit tests (474+ tests)
+│   └── Squad.SDK.NET.Tests/    # Unit tests
 ├── docs/
 │   └── examples.md             # Comprehensive usage examples
 ├── .editorconfig               # Code style rules
@@ -57,7 +57,8 @@ squad-sdk-net/
 │   │   ├── ci.yml              # CI (multi-OS matrix, coverage, pack)
 │   │   ├── codeql.yml          # CodeQL security scanning
 │   │   ├── dependency-review.yml # Dependency vulnerability review
-│   │   └── release.yml         # Tag-driven release + NuGet publish
+│   │   ├── release.yml         # Tag-driven release + NuGet publish
+│   │   └── sync-check.yml      # Upstream sync monitoring
 ├── CHANGELOG.md                # Release notes
 ├── CODEOWNERS                  # Required reviewers
 ├── CONTRIBUTING.md             # Contribution guide
@@ -71,7 +72,7 @@ squad-sdk-net/
 
 ## Documentation
 
-- **[Usage Examples](docs/examples.md)** — 16-section cookbook with copy-paste-ready C# examples covering the Builder API, routing, events, hooks, cost tracking, sessions, skills, casting, import/export, and more.
+- **[Usage Examples](docs/examples.md)** — 17-section cookbook with copy-paste-ready C# examples covering the Builder API, routing, events, hooks, cost tracking, sessions, skills, security scanning, casting, import/export, and more.
 - **API Documentation** — All public types, methods, and properties include comprehensive XML doc comments for IntelliSense and generated API reference.
 - **[Package README](src/Squad.SDK.NET/README.md)** — Detailed feature overview, architecture diagram, and quick start guide.
 - **[Changelog](CHANGELOG.md)** — Release notes following [Keep a Changelog](https://keepachangelog.com/) format.

@@ -20,6 +20,7 @@ Squad.SDK.NET is a .NET port of [@bradygaster/squad-sdk](https://github.com/brad
 - **Cost tracking and usage aggregation** across sessions and models
 - **Charter compiler** — parses markdown + YAML frontmatter into `AgentCharter` objects
 - **Skill registry and loader** for extensible agent capabilities
+- **Skill security scanner** — static analysis of skill markdown for embedded credentials, download-execute patterns, and privilege escalation
 - **Platform detection** — OS, terminal, and IDE awareness
 - **Import/export** for sharing squad configurations as portable JSON
 - **Full AOT / Native AOT compatibility** — zero reflection, zero dynamic code generation
@@ -49,19 +50,19 @@ var services = new ServiceCollection();
 services.AddSquadSdk(builder =>
 {
     builder
-        .WithTeam(team => team.Named("dev-squad"))
+        .WithTeam(team => team.Name("dev-squad"))
         .WithAgent(agent =>
         {
             agent
-                .Named("architect")
-                .WithCharter("path/to/architect/charter.md");
+                .Name("architect")
+                .Charter("path/to/architect/charter.md")
+                .Role("technical-lead");
         })
         .WithRouting(routing =>
         {
             routing
-                .ForWorkType("design-review")
-                .RouteTo(["architect"])
-                .WithTier(ResponseTier.Full);
+                .AddRule("design-review", ["architect"], tier: ResponseTier.Full)
+                .DefaultAgent("architect");
         });
 });
 
@@ -93,26 +94,24 @@ var options = new SquadMessageOptions
     Prompt = "Design a caching strategy for high-traffic endpoints"
 };
 
-var response = await session.SendAsync(options);
+var response = await session.SendAndWaitAsync(options);
 ```
 
 ### 5. Subscribe to Events
 
 ```csharp
-session.On(evt =>
+var eventBus = provider.GetRequiredService<IEventBus>();
+
+eventBus.Subscribe(SquadEventType.SessionMessage, async evt =>
 {
-    if (evt.Type == SquadEventType.SessionMessage)
-    {
-        Console.WriteLine($"Response: {evt.Payload}");
-    }
-    else if (evt.Type == SquadEventType.Usage)
-    {
-        var usage = (UsagePayload)evt.Payload;
-        Console.WriteLine($"Tokens: {usage.InputTokens + usage.OutputTokens}");
-    }
+    Console.WriteLine($"Response: {evt.Payload}");
 });
 
-await Task.Delay(Timeout.Infinite);
+eventBus.Subscribe(SquadEventType.Usage, async evt =>
+{
+    if (evt.Payload is UsagePayload usage)
+        Console.WriteLine($"Tokens: {usage.InputTokens + usage.OutputTokens}");
+});
 ```
 
 ## Fluent Builder API
@@ -123,43 +122,35 @@ The `SquadBuilder` class exposes a chainable API for configuring your squad:
 SquadBuilder.Create()
     .WithTeam(team => 
     {
-        team.Named("platform-team")
-           .WithDescription("Backend infrastructure specialists");
+        team.Name("platform-team")
+            .Description("Backend infrastructure specialists");
     })
     .WithAgent(agent =>
     {
         agent
-            .Named("db-expert")
-            .WithCharter("./charters/db.md")
-            .WithAllowedTools(["sql_query", "analyze_schema"])
-            .WithModelPreference("gpt-5");
+            .Name("db-expert")
+            .Charter("./charters/db.md")
+            .Role("database")
+            .AllowTools("sql_query", "analyze_schema")
+            .Model("gpt-5");
     })
     .WithAgent(agent =>
     {
         agent
-            .Named("api-designer")
-            .WithCharter("./charters/api.md");
+            .Name("api-designer")
+            .Charter("./charters/api.md")
+            .Role("api");
     })
     .WithRouting(routing =>
     {
         routing
-            .ForWorkType("database-optimization")
-            .RouteTo(["db-expert"])
-            .WithTier(ResponseTier.Full)
-            .WithPriority(10);
-
-        routing
-            .ForWorkType("api-design")
-            .RouteTo(["api-designer"])
-            .WithTier(ResponseTier.Standard)
-            .WithPriority(5);
-
-        routing
-            .SetFallbackBehavior(RoutingFallbackBehavior.Coordinator);
+            .AddRule("database-optimization", ["db-expert"], tier: ResponseTier.Full, priority: 10)
+            .AddRule("api-design", ["api-designer"], tier: ResponseTier.Standard, priority: 5)
+            .Fallback(RoutingFallbackBehavior.Coordinator);
     })
     .WithModels(models =>
     {
-        models.Prefer("gpt-5");
+        models.Default("gpt-5");
     })
     .WithHooks(new PolicyConfig
     {
@@ -281,8 +272,8 @@ var services = new ServiceCollection();
 services.AddSquadSdk(builder =>
 {
     builder
-        .WithTeam(team => team.Named("my-squad"))
-        .WithAgent(agent => agent.Named("agent1").WithCharter("./charter.md"));
+        .WithTeam(team => team.Name("my-squad"))
+        .WithAgent(agent => agent.Name("agent1").Role("dev").Charter("./charter.md"));
 });
 
 var provider = services.BuildServiceProvider();
@@ -355,7 +346,7 @@ Squad.SDK.NET is fully compatible with .NET Native AOT publishing:
 
 ## Testing
 
-The SDK includes a comprehensive test suite with 20+ test classes and 474+ test cases (and growing):
+The SDK includes a comprehensive test suite with updated test cases:
 
 ```
 Squad.SDK.NET.Tests/
@@ -375,6 +366,7 @@ Squad.SDK.NET.Tests/
 ├── ServiceCollectionExtensionsTests.cs — DI registration
 ├── SessionPoolTests.cs               — Session pool lifecycle
 ├── SkillRegistryTests.cs             — Skill loading and lookup
+├── SkillSecurityScannerTests.cs      — Skill security scanning
 ├── SquadBuilderTests.cs              — Fluent builder validation
 ├── SquadClientIdempotencyTests.cs    — Client idempotency
 ├── StorageStateResolutionTests.cs    — Storage state resolution
