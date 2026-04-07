@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -59,7 +59,7 @@ jobs:
     name: Publish CI package to GitHub Packages
     runs-on: ubuntu-latest
     needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'pull_request'
     permissions:
       packages: write
     steps:
@@ -86,6 +86,45 @@ jobs:
           -c Release \
           -o ./artifacts \
           -p:Version=${{ steps.ci-version.outputs.version }}
+
+    - name: Publish to GitHub Packages
+      run: |
+        dotnet nuget push ./artifacts/*.nupkg \
+          --api-key "${{ secrets.GITHUB_TOKEN }}" \
+          --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
+          --skip-duplicate
+
+  publish-dev:
+    name: Publish dev package to GitHub Packages
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    permissions:
+      packages: write
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Restore
+      run: dotnet restore Squad.SDK.NET.slnx
+
+    - name: Set dev version
+      id: dev-version
+      run: |
+        BASE=$(dotnet msbuild src/Squad.SDK.NET/Squad.SDK.NET.csproj -getProperty:Version --verbosity quiet)
+        echo "version=${BASE}-dev.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+
+    - name: Pack
+      run: |
+        dotnet pack src/Squad.SDK.NET/Squad.SDK.NET.csproj \
+          --no-restore \
+          -c Release \
+          -o ./artifacts \
+          -p:Version=${{ steps.dev-version.outputs.version }}
 
     - name: Publish to GitHub Packages
       run: |

@@ -70,11 +70,17 @@ Pushing a `v*` tag triggers the [release workflow](.github/workflows/release.yml
 
 Tags containing a hyphen (e.g., `v0.2.0-preview.1`) are automatically marked as pre-release on both GitHub and NuGet.
 
-## CI Packages
+## Pre-release Packages on GitHub Packages
 
-Every push to `main` also publishes a pre-release package to [GitHub Packages](https://github.com/snickler/squad-sdk-net/packages) using the version format `{version}-ci.{run_number}` (e.g., `0.1.0-ci.42`). This lets you consume the latest development build without downloading an artifact manually.
+Three pre-release package channels are published automatically to [GitHub Packages](https://github.com/snickler/squad-sdk-net/packages):
 
-To use CI packages, add the GitHub Packages NuGet source to your project:
+| Channel | Trigger | Version format | Example |
+|---------|---------|----------------|---------|
+| **CI** | Every PR build | `{version}-ci.{run_number}` | `0.1.0-ci.42` |
+| **Dev** | Push / merge to `dev` | `{version}-dev.{run_number}` | `0.1.0-dev.55` |
+| **Release** | Push a `v*` tag | `{version}` | `0.1.0` |
+
+To consume any of these packages, add the GitHub Packages NuGet source to your project:
 
 ```bash
 dotnet nuget add source \
@@ -84,7 +90,7 @@ dotnet nuget add source \
   --password <your-github-pat>
 ```
 
-Then install the latest CI build:
+Then install the latest pre-release build:
 
 ```bash
 dotnet add package Squad.SDK.NET --prerelease
