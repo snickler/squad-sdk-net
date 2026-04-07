@@ -77,7 +77,7 @@ Three pre-release package channels are published automatically to [GitHub Packag
 | Channel | Trigger | Version format | Example |
 |---------|---------|----------------|---------|
 | **CI** | Every PR build | `{version}-ci.{run_number}` | `0.1.0-ci.42` |
-| **Dev** | Push / merge to `dev` | `{version}-dev.{run_number}` | `0.1.0-dev.55` |
+| **Dev** | Push / merge to `dev` | `{version}-dev` | `0.1.0-dev` |
 | **Release** | Push a `v*` tag | `{version}` | `0.1.0` |
 
 To consume any of these packages, add the GitHub Packages NuGet source to your project:

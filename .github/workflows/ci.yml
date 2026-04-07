@@ -116,7 +116,7 @@ jobs:
       id: dev-version
       run: |
         BASE=$(dotnet msbuild src/Squad.SDK.NET/Squad.SDK.NET.csproj -getProperty:Version --verbosity quiet)
-        echo "version=${BASE}-dev.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+        echo "version=${BASE}-dev" >> "$GITHUB_OUTPUT"
 
     - name: Pack
       run: |
