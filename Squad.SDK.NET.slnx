@@ -5,4 +5,10 @@
   <Folder Name="/tests/">
     <Project Path="tests/Squad.SDK.NET.Tests/Squad.SDK.NET.Tests.csproj" />
   </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/hello-squad/hello-squad.csproj" />
+    <Project Path="samples/knock-knock/knock-knock.csproj" />
+    <Project Path="samples/hook-governance/hook-governance.csproj" />
+    <Project Path="samples/skill-discovery/skill-discovery.csproj" />
+  </Folder>
 </Solution>
