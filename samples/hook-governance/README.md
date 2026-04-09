@@ -36,7 +36,10 @@ dotnet run
 
   Demo 4 - Ask-User Rate Limiter
     Ask #1: allow [OK]
+    Ask #2: allow [OK]
+    Ask #3: allow [OK]
     Ask #4: block [X]
+    Ask #5: block [X]
 ```
 
 ## Next steps

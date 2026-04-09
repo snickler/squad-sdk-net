@@ -17,6 +17,8 @@ var tempDir = Path.Combine(Path.GetTempPath(), $"hello-squad-demo-{Guid.NewGuid(
 var squadDir = Path.Combine(tempDir, ".squad");
 Directory.CreateDirectory(squadDir);
 
+try
+{
 var paths = SquadResolver.ResolveSquad(tempDir);
 Console.WriteLine($"  ✅ Created demo .squad/ at: {squadDir}");
 Console.WriteLine($"     ResolveSquad() → {paths?.ProjectDir ?? "(not found)"}");
@@ -116,8 +118,11 @@ var universesMatch = firstCast.Count == secondCast.Count
 Console.WriteLine($"  Casting records: {firstCast.Count + secondCast.Count}");
 Console.WriteLine($"  Names consistent across casts: {(universesMatch ? "✅ Yes" : "❌ No")}");
 Console.WriteLine();
-
-Directory.Delete(tempDir, recursive: true);
+}
+finally
+{
+    try { Directory.Delete(tempDir, recursive: true); } catch { /* best effort */ }
+}
 
 static void PrintStep(string title)
 {

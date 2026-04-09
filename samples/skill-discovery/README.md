@@ -13,10 +13,23 @@ dotnet run
 
 ## What you'll learn
 
-- `SkillLoader.LoadDirectoryAsync()` — load `SKILL.md` files from a directory
+- `SkillLoader.LoadDirectoryAsync()` — load `SKILL.md` files from nested subdirectories (each skill lives in `<skills-dir>/<skill-name>/SKILL.md`)
 - `SkillRegistry.Register()` / `Match()` — register and query skills
 - Runtime skill discovery — write a new `SKILL.md` and register it live
 - Confidence levels: `low` → `medium` → `high`
+
+## SKILL.md layout
+
+Each skill lives in its own subdirectory under the shared skills folder:
+
+```
+.squad/skills/
+  typescript-patterns/SKILL.md
+  architecture-patterns/SKILL.md
+  quality-practices/SKILL.md
+```
+
+`SkillLoader.LoadDirectoryAsync()` recursively finds every file named exactly `SKILL.md`.
 
 ## SKILL.md format
 

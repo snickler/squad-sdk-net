@@ -7,8 +7,11 @@ Two Copilot sessions trade knock-knock jokes, streaming token-by-token. Requires
 ## Prerequisites
 
 ```bash
-export GITHUB_TOKEN=ghp_...   # macOS/Linux
-$env:GITHUB_TOKEN = "ghp_..."  # PowerShell
+export GITHUB_TOKEN=ghp_...
+```
+
+```powershell
+$env:GITHUB_TOKEN = "ghp_..."
 ```
 
 ## Quick start

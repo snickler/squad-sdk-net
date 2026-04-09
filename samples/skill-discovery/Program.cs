@@ -10,7 +10,9 @@ Directory.CreateDirectory(skillsDir);
 Console.WriteLine("  Creating temporary skill files...");
 Console.WriteLine($"  Skills directory: {skillsDir}");
 
-await WriteSkill(skillsDir, "typescript-patterns.md", """
+// SkillLoader.LoadDirectoryAsync searches for files named exactly "SKILL.md";
+// each skill lives in its own subdirectory.
+await WriteSkill(Path.Combine(skillsDir, "typescript-patterns"), """
     ---
     id: typescript-patterns
     name: TypeScript Patterns
@@ -22,7 +24,7 @@ await WriteSkill(skillsDir, "typescript-patterns.md", """
     Prefer `unknown` over `any` for type-safe narrowing.
     """);
 
-await WriteSkill(skillsDir, "architecture-patterns.md", """
+await WriteSkill(Path.Combine(skillsDir, "architecture-patterns"), """
     ---
     id: architecture-patterns
     name: Architecture Patterns
@@ -34,7 +36,7 @@ await WriteSkill(skillsDir, "architecture-patterns.md", """
     Prefer vertical slicing over horizontal layering.
     """);
 
-await WriteSkill(skillsDir, "quality-practices.md", """
+await WriteSkill(Path.Combine(skillsDir, "quality-practices"), """
     ---
     id: quality-practices
     name: Quality Practices
@@ -46,9 +48,11 @@ await WriteSkill(skillsDir, "quality-practices.md", """
     Write tests that describe behaviour, not implementation.
     """);
 
-Console.WriteLine("  Created 3 skill files");
+Console.WriteLine("  Created 3 skill files (skills/typescript-patterns/SKILL.md, ...)");
 Console.WriteLine();
 
+try
+{
 // Step 1: Load skills
 PrintStep("Step 1: Load Skills from Directory");
 var skills = await SkillLoader.LoadDirectoryAsync(skillsDir);
@@ -113,9 +117,10 @@ var newSkillContent = """
     Prefer Result<T, E> over exceptions for expected failure paths.
     """;
 
-var tempPath = Path.Combine(skillsDir, "error-handling-patterns.md");
-await File.WriteAllTextAsync(tempPath, newSkillContent.Trim());
-var discovered = await SkillLoader.LoadAsync(tempPath);
+var discoveredSkillPath = Path.Combine(skillsDir, "error-handling-patterns", "SKILL.md");
+Directory.CreateDirectory(Path.GetDirectoryName(discoveredSkillPath)!);
+await File.WriteAllTextAsync(discoveredSkillPath, newSkillContent.Trim());
+var discovered = await SkillLoader.LoadAsync(discoveredSkillPath);
 registry.Register(discovered);
 Console.WriteLine($"  New skill registered: \"{discovered.Name}\"");
 
@@ -130,11 +135,17 @@ Console.WriteLine("  [LOW]  -- First observation; pattern just noticed");
 Console.WriteLine("  [MED]  -- Confirmed; validated across sessions");
 Console.WriteLine("  [HIGH] -- Established; proven team standard");
 Console.WriteLine();
+}
+finally
+{
+    try { Directory.Delete(tempDir, recursive: true); } catch { /* best effort */ }
+}
 
-Directory.Delete(tempDir, recursive: true);
-
-static async Task WriteSkill(string dir, string filename, string content) =>
-    await File.WriteAllTextAsync(Path.Combine(dir, filename), content.Trim());
+static async Task WriteSkill(string skillDir, string content)
+{
+    Directory.CreateDirectory(skillDir);
+    await File.WriteAllTextAsync(Path.Combine(skillDir, "SKILL.md"), content.Trim());
+}
 
 static void PrintStep(string title)
 {
