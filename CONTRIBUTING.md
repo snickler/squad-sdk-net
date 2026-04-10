@@ -37,7 +37,7 @@ dotnet test
 3. **Make your changes** — follow the code style guidelines below
 4. **Add or update tests** for any new functionality
 5. **Ensure all tests pass** (`dotnet test`)
-6. **Create a PR as a draft** — `gh pr create --draft --base main --repo snickler/squad-sdk-net --head {yourusername}:your-branch`
+6. **Create a PR as a draft** — `gh pr create --draft --base dev --repo snickler/squad-sdk-net --head <your-username>:your-branch`
 7. **Work on your changes** until CI passes and you're satisfied
 8. **Mark as "Ready for review"** — this is the handoff signal to the core team (see below)
 

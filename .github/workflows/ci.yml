@@ -44,11 +44,20 @@ jobs:
         && github.event.pull_request.base.ref != 'insider'
       shell: pwsh
       run: |
-        Write-Host "## 🏷️ Prerelease Version Guard" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+        "## 🏷️ Prerelease Version Guard" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
 
         $csprojPath = "src/Squad.SDK.NET/Squad.SDK.NET.csproj"
-        [xml]$csproj = Get-Content $csprojPath
-        $version = $csproj.Project.PropertyGroup.Version
+        [xml]$csproj = Get-Content -Raw $csprojPath
+        $version = @($csproj.Project.PropertyGroup | ForEach-Object { $_.Version }) |
+          Where-Object { $_ -and -not [string]::IsNullOrWhiteSpace($_) } |
+          Select-Object -First 1
+
+        if ([string]::IsNullOrWhiteSpace($version)) {
+          Write-Error "PACKAGE VERSION COULD NOT BE DETERMINED — no non-empty <Version> element was found in $csprojPath."
+          Write-Error ""
+          Write-Error "Ensure $csprojPath contains a non-empty <Version>...</Version> value in a PropertyGroup."
+          exit 1
+        }
 
         if ($version -match '-') {
           Write-Error "PRERELEASE VERSION DETECTED — package version '$version' has a prerelease suffix and cannot merge to dev/main."
