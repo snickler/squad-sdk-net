@@ -14,8 +14,45 @@ permissions:
   contents: read
 
 jobs:
+  check-version:
+    name: Verify version format
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check version against target branch
+        shell: pwsh
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          $version = (Select-Xml -Path src/Squad.SDK.NET/Squad.SDK.NET.csproj -XPath '//Version').Node.InnerText
+          $targetBranch = $env:BASE_REF
+          $isPreRelease = $version -match '-'
+
+          Write-Host "Version : $version"
+          Write-Host "Target  : $targetBranch"
+
+          if ($targetBranch -eq 'main') {
+            if ($isPreRelease) {
+              Write-Error "❌ Version '$version' contains a prerelease suffix. PRs to 'main' must use a stable version (e.g., 0.2.0). Update <Version> in Squad.SDK.NET.csproj and CHANGELOG.md before merging."
+              exit 1
+            }
+            Write-Host "✅ Stable version '$version' is valid for 'main'."
+          } elseif ($targetBranch -eq 'dev') {
+            if (-not $isPreRelease) {
+              Write-Warning "⚠️  Version '$version' has no prerelease suffix. The 'dev' branch conventionally carries a prerelease version (e.g., 0.2.0-preview.1). Run scripts/bump-version.ps1 to update it."
+            } else {
+              Write-Host "✅ Prerelease version '$version' is valid for 'dev'."
+            }
+          } else {
+            Write-Host "ℹ️  Skipping version check for branch '$targetBranch'."
+          }
+
   build:
     runs-on: ${{ matrix.os }}
+    needs: [check-version]
+    if: always() && (needs.check-version.result == 'success' || needs.check-version.result == 'skipped')
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]

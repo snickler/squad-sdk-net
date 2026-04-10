@@ -65,11 +65,12 @@ This project follows [Semantic Versioning 2.0](https://semver.org/). See [VERSIO
 
 ### Creating a Release
 
-1. Update `<Version>` in `src/Squad.SDK.NET/Squad.SDK.NET.csproj`
-2. Update `CHANGELOG.md` with release notes
-3. Merge to `main`
-4. Tag the merge commit: `git tag v0.2.0 && git push origin v0.2.0`
+1. Run `./scripts/bump-version.ps1 -Version X.Y.Z` to update `<Version>` in `Squad.SDK.NET.csproj` and prepare `CHANGELOG.md`
+2. Review and complete the release notes in `CHANGELOG.md`
+3. Commit and open a PR against `main`: `git commit -am "chore: bump version to X.Y.Z"`
+4. After merging, tag the merge commit: `git tag vX.Y.Z && git push origin vX.Y.Z`
 5. The [release workflow](.github/workflows/release.yml) handles the rest
+6. After a stable release a bot will automatically open a PR on `dev` bumping to the next preview version
 
 ## Security
 

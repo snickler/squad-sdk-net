@@ -35,21 +35,42 @@ The canonical version lives in `src/Squad.SDK.NET/Squad.SDK.NET.csproj`:
 
 All release tooling validates that the git tag matches this value.
 
+## Version Bump Script
+
+Use `scripts/bump-version.ps1` to update the version in one step. It updates `<Version>` in `Squad.SDK.NET.csproj` and prepares `CHANGELOG.md` automatically.
+
+```powershell
+# Bump to a prerelease (e.g., on the dev branch after a stable release)
+./scripts/bump-version.ps1 -Version 0.2.0-preview.1
+
+# Bump to stable for an upcoming release
+./scripts/bump-version.ps1 -Version 0.2.0
+```
+
+**Stable release behavior:** converts the `[Unreleased]` section in `CHANGELOG.md` into a versioned entry and inserts a fresh `[Unreleased]` placeholder above it.
+
+**Prerelease bump behavior:** ensures an `[Unreleased]` placeholder exists at the top of `CHANGELOG.md` and updates the csproj version.
+
 ## Release Process
 
 ### 1. Prepare the release
 
-```bash
-# Update version in csproj
-# Update CHANGELOG.md with release notes
-# Commit and merge to main
+```powershell
+# From the repo root (Windows, macOS, or Linux with pwsh installed)
+./scripts/bump-version.ps1 -Version 0.2.0
+
+# Review CHANGELOG.md — fill in any missing release notes
+# Then commit
+git add -A
+git commit -m "chore: bump version to 0.2.0"
 ```
 
-### 2. Tag and push
+### 2. Merge and tag
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+# Merge to main (via pull request), then:
+git tag v0.2.0
+git push origin v0.2.0
 ```
 
 ### 3. Automated release
@@ -66,7 +87,11 @@ Pushing a `v*` tag triggers the [release workflow](.github/workflows/release.yml
 8. **Publishes** to NuGet.org (requires `NUGET_API_KEY` secret in the `release` environment)
 9. **Publishes** to GitHub Packages (using `GITHUB_TOKEN`, no extra configuration needed)
 
-### 4. Pre-release tags
+### 4. Post-release dev sync (automated)
+
+After a successful stable release, the [post-release sync workflow](.github/workflows/post-release-dev-sync.yml) automatically opens a pull request against `dev` that bumps the version to the next minor preview (e.g., `0.3.0-preview.1` after releasing `0.2.0`). Review and merge that PR to keep `dev` on a prerelease version.
+
+### 5. Pre-release tags
 
 Tags containing a hyphen (e.g., `v0.2.0-preview.1`) are automatically marked as pre-release on both GitHub and NuGet.
 

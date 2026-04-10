@@ -1,0 +1,116 @@
+name: "Post-Release: Sync dev to next preview"
+
+on:
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync-dev:
+    name: Open dev-sync PR for next preview version
+    runs-on: ubuntu-latest
+    # Only run when the Release workflow succeeded; it is always triggered by a v* tag
+    if: github.event.workflow_run.conclusion == 'success'
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: dev
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine released version and next preview
+        id: versions
+        shell: pwsh
+        env:
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          # head_branch for a tag-triggered workflow_run is the tag name (e.g. v0.1.0)
+          $tag = $env:HEAD_BRANCH
+          $released = $tag -replace '^v', ''
+
+          # Only proceed for stable (non-prerelease) versions
+          if ($released -match '-') {
+            Write-Host "Released version '$released' is a prerelease — skipping dev sync."
+            echo "skip=true" >> $env:GITHUB_OUTPUT
+            exit 0
+          }
+
+          # Validate it looks like a version number (guard against branch-name false-positives)
+          if ($released -notmatch '^[0-9]+\.[0-9]+\.[0-9]+$') {
+            Write-Host "head_branch '$tag' does not look like a stable version tag — skipping."
+            echo "skip=true" >> $env:GITHUB_OUTPUT
+            exit 0
+          }
+
+          # Parse MAJOR.MINOR.PATCH and bump MINOR
+          $parts = $released -split '\.'
+          $major = [int]$parts[0]
+          $minor = [int]$parts[1]
+          $nextMinor = $minor + 1
+          $nextPreview = "$major.$nextMinor.0-preview.1"
+
+          Write-Host "Released : $released"
+          Write-Host "Next dev : $nextPreview"
+
+          echo "released=$released" >> $env:GITHUB_OUTPUT
+          echo "next_preview=$nextPreview" >> $env:GITHUB_OUTPUT
+          echo "skip=false" >> $env:GITHUB_OUTPUT
+
+      - name: Bump version on dev
+        if: steps.versions.outputs.skip != 'true'
+        shell: pwsh
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          $nextPreview = '${{ steps.versions.outputs.next_preview }}'
+          ./scripts/bump-version.ps1 -Version $nextPreview
+
+      - name: Create PR
+        if: steps.versions.outputs.skip != 'true'
+        uses: actions/github-script@v7
+        env:
+          RELEASED: ${{ steps.versions.outputs.released }}
+          NEXT_PREVIEW: ${{ steps.versions.outputs.next_preview }}
+        with:
+          script: |
+            const { RELEASED, NEXT_PREVIEW } = process.env;
+            const branch = `chore/dev-sync-${NEXT_PREVIEW}`;
+
+            // Push the version-bump commit to a new branch
+            await exec.exec('git', ['checkout', '-b', branch]);
+            await exec.exec('git', ['add', '-A']);
+            await exec.exec('git', [
+              'commit',
+              '-m', `chore: bump dev to ${NEXT_PREVIEW} after ${RELEASED} release`,
+              '--author', 'github-actions[bot] <github-actions[bot]@users.noreply.github.com>'
+            ]);
+            await exec.exec('git', ['push', 'origin', branch]);
+
+            const { data: pr } = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              title: `chore: bump dev to ${NEXT_PREVIEW}`,
+              head:  branch,
+              base:  'dev',
+              body: [
+                `## Post-release dev sync`,
+                ``,
+                `Bumps the \`dev\` branch to \`${NEXT_PREVIEW}\` following the \`v${RELEASED}\` stable release.`,
+                ``,
+                `### What changed`,
+                `- \`<Version>\` in \`Squad.SDK.NET.csproj\` → \`${NEXT_PREVIEW}\``,
+                `- \`CHANGELOG.md\` — fresh \`[Unreleased]\` section added`,
+                ``,
+                `### Checklist`,
+                `- [ ] Review version bump`,
+                `- [ ] Verify CHANGELOG.md looks correct`,
+                `- [ ] Merge to \`dev\``,
+              ].join('\n'),
+            });
+
+            core.info(`Opened PR #${pr.number}: ${pr.html_url}`);
