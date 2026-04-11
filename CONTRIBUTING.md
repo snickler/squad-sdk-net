@@ -37,7 +37,32 @@ dotnet test
 3. **Make your changes** — follow the code style guidelines below
 4. **Add or update tests** for any new functionality
 5. **Ensure all tests pass** (`dotnet test`)
-6. **Submit a PR** against `main`
+6. **Create a PR as a draft** — `gh pr create --draft --base dev --repo snickler/squad-sdk-net --head <your-username>:your-branch`
+7. **Work on your changes** until CI passes and you're satisfied
+8. **Mark as "Ready for review"** — this is the handoff signal to the core team (see below)
+
+### Handoff: Contributor → Core Team
+
+External contributors don't have write access, so the review-to-merge flow has a handoff point. Here's exactly what happens:
+
+**Your side (contributor):**
+
+1. ✅ All required CI checks are green (build, test)
+2. ✅ PR is no longer a draft — mark as **"Ready for review"**
+3. ✅ Copilot reviewer bot posts its review automatically (if configured)
+4. ✅ Review Copilot's suggestions and manually apply any you agree with in your fork
+5. ✅ Push updates to your branch to address feedback
+6. ✅ If Copilot flags issues you can't resolve, note them in a PR comment
+
+> **Note:** Copilot review suggestions appear as comments, but the "Commit suggestion" and "Fix with Copilot" buttons require repo write access and won't work for external contributors. Review the suggestions, apply them manually in your fork, and push your changes.
+
+**Core team side (after you undraft):**
+
+1. Look for CI-green, undrafted PRs from contributors
+2. Address any remaining Copilot review issues (using "Fix with Copilot" or manual fixes)
+3. Human review, resolve threads, and merge
+
+**TL;DR:** Your job is done when the PR is undrafted, CI is green, and you've responded to suggestions. The core team takes it from there.
 
 ### PR Guidelines
 
