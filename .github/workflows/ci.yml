@@ -37,6 +37,40 @@ jobs:
     - name: Test
       run: dotnet test Squad.SDK.NET.slnx --no-build -c Release --verbosity normal --collect:"XPlat Code Coverage"
 
+    - name: "Gate: Prerelease Version Guard"
+      if: >-
+        matrix.os == 'ubuntu-latest'
+        && github.event_name == 'pull_request'
+        && github.event.pull_request.base.ref != 'insider'
+      shell: pwsh
+      run: |
+        "## 🏷️ Prerelease Version Guard" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+
+        $csprojPath = "src/Squad.SDK.NET/Squad.SDK.NET.csproj"
+        [xml]$csproj = Get-Content -Raw $csprojPath
+        $version = @($csproj.Project.PropertyGroup | ForEach-Object { $_.Version }) |
+          Where-Object { $_ -and -not [string]::IsNullOrWhiteSpace($_) } |
+          Select-Object -First 1
+
+        if ([string]::IsNullOrWhiteSpace($version)) {
+          Write-Error "PACKAGE VERSION COULD NOT BE DETERMINED — no non-empty <Version> element was found in $csprojPath."
+          Write-Error ""
+          Write-Error "Ensure $csprojPath contains a non-empty <Version>...</Version> value in a PropertyGroup."
+          exit 1
+        }
+
+        if ($version -match '-') {
+          Write-Error "PRERELEASE VERSION DETECTED — package version '$version' has a prerelease suffix and cannot merge to dev/main."
+          Write-Error ""
+          Write-Error "  $csprojPath has <Version>$version</Version>"
+          Write-Error ""
+          Write-Error "Prerelease suffixes (-alpha, -beta, -rc, -preview) must be removed before merging."
+          Write-Error "To fix: update <Version> in $csprojPath to a release version (e.g., remove the hyphen and suffix)."
+          exit 1
+        }
+
+        Write-Host "✅ Package version is a release version (no prerelease suffix): $version"
+
     - name: Pack
       run: dotnet pack src/Squad.SDK.NET/Squad.SDK.NET.csproj --no-build -c Release -o ./artifacts
       if: matrix.os == 'ubuntu-latest'
