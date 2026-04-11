@@ -7,6 +7,17 @@ namespace Squad.SDK.NET.Remote;
 /// <summary>
 /// Bridges remote commands to the local <see cref="ISquadClient"/>, handling RPC-style requests.
 /// </summary>
+/// <remarks>
+/// <strong>Deprecated.</strong> The remote-control (RC) bridge and its associated tunnel transport
+/// are deprecated as of upstream bradygaster/squad@9451e66 and will be removed in a future release.
+/// Use the native <see cref="Squad.SDK.NET.Platform.TeamsCommunicationAdapter"/> or a
+/// platform-specific adapter for in-process communication instead.
+/// </remarks>
+[Obsolete(
+    "RemoteBridge (tunnel/rc transport) is deprecated. " +
+    "Use a platform adapter such as TeamsCommunicationAdapter for in-process communication. " +
+    "This type will be removed in a future release.",
+    error: false)]
 public sealed class RemoteBridge : IAsyncDisposable
 {
     private readonly ISquadClient _client;
