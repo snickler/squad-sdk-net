@@ -31,7 +31,7 @@ jobs:
           git fetch origin dev insider --no-tags
 
       - name: Analyze and create insider sync issue
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           CLOSED_ISSUE_BODY: ${{ github.event.issue.body }}
           CLOSED_ISSUE_NUMBER: ${{ github.event.issue.number }}
