@@ -28,6 +28,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Templates\**\*" Exclude="Templates\**\*.cs" />
+    <EmbeddedResource Update="Templates\**\*">
+      <LogicalName>Squad.SDK.NET.Templates.$([System.String]::new('%(RecursiveDir)%(Filename)%(Extension)').Replace('\','/'))</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="Squad.SDK.NET.Tests" />
   </ItemGroup>
 
