@@ -99,7 +99,7 @@ jobs:
           subject-path: './artifacts/*.nupkg'
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
           prerelease: ${{ needs.validate.outputs.is-prerelease == 'true' }}
