@@ -19,7 +19,7 @@ jobs:
     if: contains(github.event.issue.labels.*.name, 'sync:dev') && contains(github.event.issue.body, '<!-- sync-issue-marker -->')
     steps:
       - name: Checkout dev branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: dev
           fetch-depth: 0
