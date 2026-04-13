@@ -1385,6 +1385,142 @@ public sealed class TeamsCommunicationAdapterStaticTests
         var adapter = new TeamsCommunicationAdapter(new TeamsCommsConfig());
         Assert.IsAssignableFrom<ICommunicationAdapter>(adapter);
     }
+
+    [Fact]
+    public void GetTokenPath_SameInputsSamePath_DifferentInputsDifferentPath()
+    {
+        var first = TeamsCommunicationAdapter.GetTokenPath("tenant-a", "client-a");
+        var second = TeamsCommunicationAdapter.GetTokenPath("tenant-a", "client-a");
+        var differentTenant = TeamsCommunicationAdapter.GetTokenPath("tenant-b", "client-a");
+        var differentClient = TeamsCommunicationAdapter.GetTokenPath("tenant-a", "client-b");
+
+        Assert.Equal(first, second);
+        Assert.NotEqual(first, differentTenant);
+        Assert.NotEqual(first, differentClient);
+        Assert.StartsWith("teams-tokens-", Path.GetFileName(first));
+        Assert.EndsWith(".json", first, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void LoadTokens_ValidScopedFile_ReturnsTokens()
+    {
+        var (tenantId, clientId, tokenPath) = CreateScopedTokenTarget();
+
+        try
+        {
+            WriteScopedTokens(
+                tokenPath,
+                accessToken: "header.payload.signature",
+                refreshToken: "refresh-token",
+                expiresAt: DateTimeOffset.UtcNow.AddMinutes(10),
+                configTenantId: tenantId,
+                clientId: clientId);
+
+            var loaded = TeamsCommunicationAdapter.LoadTokens(tenantId, clientId);
+
+            Assert.NotNull(loaded);
+            Assert.Equal("header.payload.signature", loaded.AccessToken);
+            Assert.Equal("refresh-token", loaded.RefreshToken);
+            Assert.Equal(tenantId, loaded.ConfigTenantId);
+            Assert.Equal(clientId, loaded.ClientId);
+        }
+        finally
+        {
+            CleanupScopedTokenFile(tokenPath);
+        }
+    }
+
+    [Fact]
+    public void LoadTokens_WhitespaceRefreshToken_ReturnsNull()
+    {
+        var (tenantId, clientId, tokenPath) = CreateScopedTokenTarget();
+
+        try
+        {
+            WriteScopedTokens(
+                tokenPath,
+                accessToken: "header.payload.signature",
+                refreshToken: "   ",
+                expiresAt: DateTimeOffset.UtcNow.AddMinutes(10),
+                configTenantId: tenantId,
+                clientId: clientId);
+
+            var loaded = TeamsCommunicationAdapter.LoadTokens(tenantId, clientId);
+
+            Assert.Null(loaded);
+        }
+        finally
+        {
+            CleanupScopedTokenFile(tokenPath);
+        }
+    }
+
+    [Fact]
+    public async Task LogoutAsync_WithPersistedScopedToken_DeletesTokenFile()
+    {
+        var (tenantId, clientId, tokenPath) = CreateScopedTokenTarget();
+
+        try
+        {
+            WriteScopedTokens(
+                tokenPath,
+                accessToken: "header.payload.signature",
+                refreshToken: "refresh-token",
+                expiresAt: DateTimeOffset.UtcNow.AddMinutes(10),
+                configTenantId: tenantId,
+                clientId: clientId);
+
+            var adapter = new TeamsCommunicationAdapter(new TeamsCommsConfig
+            {
+                TenantId = tenantId,
+                ClientId = clientId
+            });
+
+            Assert.True(File.Exists(tokenPath));
+
+            await adapter.LogoutAsync();
+
+            Assert.False(File.Exists(tokenPath));
+        }
+        finally
+        {
+            CleanupScopedTokenFile(tokenPath);
+        }
+    }
+
+    private static (string TenantId, string ClientId, string TokenPath) CreateScopedTokenTarget()
+    {
+        var tenantId = $"tenant-{Guid.NewGuid():N}";
+        var clientId = $"client-{Guid.NewGuid():N}";
+        return (tenantId, clientId, TeamsCommunicationAdapter.GetTokenPath(tenantId, clientId));
+    }
+
+    private static void WriteScopedTokens(
+        string tokenPath,
+        string accessToken,
+        string refreshToken,
+        DateTimeOffset expiresAt,
+        string? configTenantId = null,
+        string? clientId = null)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(tokenPath)!);
+        var tokens = new StoredTokens
+        {
+            AccessToken = accessToken,
+            RefreshToken = refreshToken,
+            ExpiresAt = expiresAt,
+            ConfigTenantId = configTenantId,
+            ClientId = clientId
+        };
+
+        File.WriteAllText(tokenPath, JsonSerializer.Serialize(tokens));
+    }
+
+    private static void CleanupScopedTokenFile(string tokenPath)
+    {
+        if (File.Exists(tokenPath))
+            File.Delete(tokenPath);
+    }
 }
 
 #endregion
