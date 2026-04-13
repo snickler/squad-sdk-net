@@ -108,4 +108,12 @@ public interface ICommunicationAdapter
     /// <param name="threadId">The thread identifier.</param>
     /// <returns>A URL string, or <see langword="null"/> if not applicable.</returns>
     string? GetNotificationUrl(string threadId);
+
+    /// <summary>
+    /// Clears any locally cached credentials for this adapter.
+    /// Implementations that do not persist credentials may use the default no-op behavior.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task representing the logout operation.</returns>
+    Task LogoutAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 }

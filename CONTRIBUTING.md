@@ -33,7 +33,7 @@ dotnet test
 ## Pull Request Process
 
 1. **Fork** the repository
-2. **Create a branch** from `main` (`git checkout -b feature/your-feature`)
+2. **Create a branch** from `dev` (`git fetch origin dev && git checkout -b feature/your-feature origin/dev`)
 3. **Make your changes** — follow the code style guidelines below
 4. **Add or update tests** for any new functionality
 5. **Ensure all tests pass** (`dotnet test`)

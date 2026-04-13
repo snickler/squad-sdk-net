@@ -782,7 +782,10 @@ public sealed class SquadResolverTests
     [Fact]
     public void ResolveSquad_NonExistentDir_ReturnsNullOrPersonalFallback()
     {
-        var fakeDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        // Use a root-level probe path so unrelated tests that create a user-profile .squad folder
+        // do not turn this into an accidental project-resolution case.
+        var root = Path.GetPathRoot(Path.GetTempPath()) ?? Path.GetTempPath();
+        var fakeDir = Path.Combine(root, Guid.NewGuid().ToString("N"));
 
         var result = SquadResolver.ResolveSquad(fakeDir);
 

@@ -1,7 +1,10 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using System.Security.Cryptography;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -33,7 +36,7 @@ public sealed record TeamsCommsConfig
 /// Auth priority: cached token → token refresh → browser PKCE → device code fallback.
 /// Uses the Microsoft Graph PowerShell first-party client ID by default, which works
 /// in every Microsoft tenant without a custom Entra app registration.
-/// Tokens are stored in <c>~/.squad/teams-tokens.json</c>.
+/// Tokens are stored per identity in <c>~/.squad/teams-tokens-{hash(tenantId:clientId)}.json</c>.
 /// </summary>
 public sealed class TeamsCommunicationAdapter : ICommunicationAdapter
 {
@@ -46,7 +49,14 @@ public sealed class TeamsCommunicationAdapter : ICommunicationAdapter
 
     private static readonly string s_squadDir = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".squad");
-    private static readonly string s_tokenPath = Path.Combine(s_squadDir, "teams-tokens.json");
+    private static readonly string s_legacyTokenPath = Path.Combine(s_squadDir, "teams-tokens.json");
+    private static readonly HashSet<string> s_permanentAuthErrors = new(StringComparer.Ordinal)
+    {
+        "invalid_grant",
+        "interaction_required",
+        "consent_required",
+        "invalid_client"
+    };
 
     private readonly TeamsCommsConfig _config;
     private readonly string _clientId;
@@ -68,6 +78,8 @@ public sealed class TeamsCommunicationAdapter : ICommunicationAdapter
         _tenantId = config.TenantId ?? DefaultTenantId;
         _resolvedChatId = config.ChatId;
         _http = httpClient ?? new HttpClient();
+
+        MigrateLegacyTokens(_tenantId, _clientId);
     }
 
     /// <inheritdoc/>
@@ -182,24 +194,47 @@ public sealed class TeamsCommunicationAdapter : ICommunicationAdapter
         return $"https://teams.microsoft.com/l/chat/{Uri.EscapeDataString(chatId)}";
     }
 
+    /// <inheritdoc/>
+    public Task LogoutAsync(CancellationToken cancellationToken = default)
+    {
+        _ = cancellationToken;
+
+        ClearTokens(_tenantId, _clientId);
+        _tokens = null;
+        ResetIdentityCaches();
+        return Task.CompletedTask;
+    }
+
     // ─── Auth ─────────────────────────────────────────────────────────────
 
     /// <summary>Ensures a valid access token is available.</summary>
     private async Task<string> EnsureAuthenticatedAsync(CancellationToken cancellationToken)
     {
-        _tokens ??= LoadTokens();
+        if (_tokens is null)
+        {
+            _tokens = LoadTokens(_tenantId, _clientId);
+            if (_tokens is not null)
+                ResetIdentityCaches();
+        }
 
         // Valid token
         if (_tokens is not null && DateTimeOffset.UtcNow < _tokens.ExpiresAt.AddMinutes(-1))
             return _tokens.AccessToken;
 
         // Expired but have refresh token — try refresh
-        if (_tokens?.RefreshToken is not null)
+        if (!string.IsNullOrWhiteSpace(_tokens?.RefreshToken))
         {
             try
             {
                 _tokens = await RefreshAccessTokenAsync(_tokens.RefreshToken, cancellationToken);
+                ResetIdentityCaches();
                 return _tokens.AccessToken;
+            }
+            catch (TeamsAuthException ex) when (IsPermanentAuthError(ex.ErrorCode))
+            {
+                ClearTokens(_tenantId, _clientId);
+                _tokens = null;
+                ResetIdentityCaches();
             }
             catch
             {
@@ -211,6 +246,7 @@ public sealed class TeamsCommunicationAdapter : ICommunicationAdapter
         try
         {
             _tokens = await StartBrowserAuthFlowAsync(cancellationToken);
+            ResetIdentityCaches();
             Console.WriteLine("✅ Teams authentication successful — tokens saved");
             return _tokens.AccessToken;
         }
@@ -221,7 +257,14 @@ public sealed class TeamsCommunicationAdapter : ICommunicationAdapter
 
         // Fallback: device code flow (works in headless/SSH environments)
         _tokens = await StartDeviceCodeFlowAsync(cancellationToken);
+        ResetIdentityCaches();
         return _tokens.AccessToken;
+    }
+
+    private void ResetIdentityCaches()
+    {
+        _cachedUserId = null;
+        _resolvedChatId = _config.ChatId;
     }
 
     /// <summary>Finds or creates a 1:1 chat with the configured recipient.</summary>
@@ -321,15 +364,15 @@ public sealed class TeamsCommunicationAdapter : ICommunicationAdapter
             }
         };
 
-        using var req = new HttpRequestMessage(HttpMethod.Post, url);
-        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-        req.Content = new StringContent(
-            JsonSerializer.Serialize(body, TeamsJsonContext.Default.GraphMessageBody),
-            Encoding.UTF8, "application/json");
-
         const int maxRetries = 3;
         for (var attempt = 0; attempt <= maxRetries; attempt++)
         {
+            using var req = new HttpRequestMessage(HttpMethod.Post, url);
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+            req.Content = new StringContent(
+                JsonSerializer.Serialize(body, TeamsJsonContext.Default.GraphMessageBody),
+                Encoding.UTF8, "application/json");
+
             using var resp = await _http.SendAsync(req, cancellationToken);
 
             if (resp.StatusCode is HttpStatusCode.TooManyRequests or HttpStatusCode.ServiceUnavailable or (HttpStatusCode)504)
@@ -446,7 +489,7 @@ public sealed class TeamsCommunicationAdapter : ICommunicationAdapter
 
                 // Exchange code for tokens
                 var tokens = await ExchangeCodeForTokensAsync(code, redirectUri, codeVerifier, cancellationToken);
-                SaveTokens(tokens);
+                SaveTokens(_tenantId, _clientId, tokens);
 
                 const string successHtml = "<html><body><h1>✅ Authentication successful!</h1><p>You can close this tab.</p></body></html>";
                 await WriteResponseAsync(context.Response, successHtml, "text/html");
@@ -531,7 +574,7 @@ public sealed class TeamsCommunicationAdapter : ICommunicationAdapter
             if (!string.IsNullOrEmpty(tokenData?.AccessToken))
             {
                 var tokens = ParseTokens(tokenData);
-                SaveTokens(tokens);
+                SaveTokens(_tenantId, _clientId, tokens);
                 Console.WriteLine("✅ Teams authentication successful — tokens saved\n");
                 return tokens;
             }
@@ -568,22 +611,58 @@ public sealed class TeamsCommunicationAdapter : ICommunicationAdapter
                         ?? throw new InvalidOperationException("Token refresh returned empty response.");
 
         if (string.IsNullOrEmpty(tokenResp.AccessToken))
-            throw new InvalidOperationException($"Token refresh failed: {tokenResp.Error} — {tokenResp.ErrorDescription}");
+            throw new TeamsAuthException(
+                $"Token refresh failed: {tokenResp.Error} — {tokenResp.ErrorDescription}",
+                tokenResp.Error);
 
-        var tokens = ParseTokens(tokenResp);
-        SaveTokens(tokens);
+        var tokens = ParseTokens(tokenResp, refreshToken);
+        SaveTokens(_tenantId, _clientId, tokens);
         return tokens;
     }
 
     // ─── Token Storage ────────────────────────────────────────────────────
 
-    private static StoredTokens? LoadTokens()
+    internal static string GetTokenPath(string tenantId, string clientId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(clientId);
+
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{tenantId}:{clientId}")))
+            .ToLowerInvariant();
+        return Path.Combine(s_squadDir, $"teams-tokens-{hash[..16]}.json");
+    }
+
+    internal static StoredTokens? LoadTokens(string tenantId, string clientId)
     {
         try
         {
-            if (!File.Exists(s_tokenPath)) return null;
-            var raw = File.ReadAllText(s_tokenPath);
-            return JsonSerializer.Deserialize(raw, TeamsJsonContext.Default.StoredTokens);
+            var tokenPath = GetTokenPath(tenantId, clientId);
+            if (!File.Exists(tokenPath))
+                return null;
+
+            var raw = File.ReadAllText(tokenPath);
+            var tokens = JsonSerializer.Deserialize(raw, TeamsJsonContext.Default.StoredTokens);
+            if (tokens is null ||
+                string.IsNullOrWhiteSpace(tokens.AccessToken) ||
+                string.IsNullOrWhiteSpace(tokens.RefreshToken) ||
+                tokens.ExpiresAt == default)
+            {
+                return null;
+            }
+
+            if (!string.IsNullOrEmpty(tokens.ConfigTenantId) &&
+                !string.Equals(tokens.ConfigTenantId, tenantId, StringComparison.Ordinal))
+            {
+                return null;
+            }
+
+            if (!string.IsNullOrEmpty(tokens.ClientId) &&
+                !string.Equals(tokens.ClientId, clientId, StringComparison.Ordinal))
+            {
+                return null;
+            }
+
+            return tokens;
         }
         catch
         {
@@ -591,44 +670,167 @@ public sealed class TeamsCommunicationAdapter : ICommunicationAdapter
         }
     }
 
-    private static void SaveTokens(StoredTokens tokens)
+    internal static void SaveTokens(string tenantId, string clientId, StoredTokens tokens)
     {
         if (!Directory.Exists(s_squadDir))
             Directory.CreateDirectory(s_squadDir);
 
-        var json = JsonSerializer.Serialize(tokens, TeamsJsonContext.Default.StoredTokens);
-        File.WriteAllText(s_tokenPath, json);
-
-        // Set restrictive permissions on non-Windows platforms
-        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        var tokenPath = GetTokenPath(tenantId, clientId);
+        var (authenticatedTenantId, authenticatedUserId) = ExtractJwtClaims(tokens.AccessToken);
+        var persistedTokens = new StoredTokens
         {
-            try
-            {
-                // chmod 600 for tokens, 700 for directory
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = "chmod",
-                    ArgumentList = { "600", s_tokenPath },
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                })?.WaitForExit();
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = "chmod",
-                    ArgumentList = { "700", s_squadDir },
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                })?.WaitForExit();
-            }
-            catch { /* chmod failure is non-fatal */ }
+            AccessToken = tokens.AccessToken,
+            RefreshToken = tokens.RefreshToken,
+            ExpiresAt = tokens.ExpiresAt,
+            ConfigTenantId = tenantId,
+            ClientId = clientId,
+            AuthenticatedTenantId = authenticatedTenantId,
+            AuthenticatedUserId = authenticatedUserId
+        };
+
+        var json = JsonSerializer.Serialize(persistedTokens, TeamsJsonContext.Default.StoredTokens);
+        File.WriteAllText(tokenPath, json);
+        TryRestrictTokenPermissions(tokenPath);
+    }
+
+    internal static void ClearTokens(string tenantId, string clientId)
+    {
+        try
+        {
+            var tokenPath = GetTokenPath(tenantId, clientId);
+            if (File.Exists(tokenPath))
+                File.Delete(tokenPath);
+        }
+        catch
+        {
+            // Best effort cleanup.
         }
     }
 
-    private static StoredTokens ParseTokens(TokenResponse resp) =>
+    internal static void MigrateLegacyTokens(string tenantId, string clientId)
+    {
+        try
+        {
+            if (!File.Exists(s_legacyTokenPath))
+                return;
+
+            var tokenPath = GetTokenPath(tenantId, clientId);
+            if (File.Exists(tokenPath))
+            {
+                File.Delete(s_legacyTokenPath);
+                return;
+            }
+
+            var raw = File.ReadAllText(s_legacyTokenPath);
+            var legacyTokens = JsonSerializer.Deserialize(raw, TeamsJsonContext.Default.StoredTokens);
+            if (legacyTokens is not null && !string.IsNullOrWhiteSpace(legacyTokens.AccessToken))
+                SaveTokens(tenantId, clientId, legacyTokens);
+
+            File.Delete(s_legacyTokenPath);
+        }
+        catch
+        {
+            // Best effort migration.
+        }
+    }
+
+    private static (string? TenantId, string? UserId) ExtractJwtClaims(string accessToken)
+    {
+        try
+        {
+            var parts = accessToken.Split('.');
+            if (parts.Length != 3 || string.IsNullOrEmpty(parts[1]))
+                return (null, null);
+
+            var payload = parts[1].Replace('-', '+').Replace('_', '/');
+            payload = (payload.Length % 4) switch
+            {
+                2 => payload + "==",
+                3 => payload + "=",
+                _ => payload
+            };
+
+            var json = Encoding.UTF8.GetString(Convert.FromBase64String(payload));
+            using var document = JsonDocument.Parse(json);
+            return (
+                TryGetString(document.RootElement, "tid"),
+                TryGetString(document.RootElement, "oid"));
+        }
+        catch
+        {
+            return (null, null);
+        }
+    }
+
+    private static string? TryGetString(JsonElement element, string propertyName)
+        => element.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.String
+            ? property.GetString()
+            : null;
+
+    private static void TryRestrictTokenPermissions(string tokenPath)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            TryRestrictWindowsTokenPermissions(tokenPath);
+            return;
+        }
+
+        try
+        {
+            File.SetUnixFileMode(
+                s_squadDir,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            File.SetUnixFileMode(
+                tokenPath,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite);
+        }
+        catch
+        {
+            // Best effort permission hardening.
+        }
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static void TryRestrictWindowsTokenPermissions(string tokenPath)
+    {
+        try
+        {
+            var currentUser = WindowsIdentity.GetCurrent().User;
+            if (currentUser is null)
+                return;
+
+            var directorySecurity = new DirectorySecurity();
+            directorySecurity.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+            directorySecurity.AddAccessRule(new FileSystemAccessRule(
+                currentUser,
+                FileSystemRights.FullControl,
+                InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
+                PropagationFlags.None,
+                AccessControlType.Allow));
+            new DirectoryInfo(s_squadDir).SetAccessControl(directorySecurity);
+
+            var fileSecurity = new FileSecurity();
+            fileSecurity.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+            fileSecurity.AddAccessRule(new FileSystemAccessRule(
+                currentUser,
+                FileSystemRights.Read | FileSystemRights.Write | FileSystemRights.Delete,
+                AccessControlType.Allow));
+            new FileInfo(tokenPath).SetAccessControl(fileSecurity);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"⚠️ Could not restrict Teams token file permissions on Windows: {ex.Message}");
+        }
+    }
+
+    private static bool IsPermanentAuthError(string? errorCode)
+        => !string.IsNullOrEmpty(errorCode) && s_permanentAuthErrors.Contains(errorCode);
+
+    private static StoredTokens ParseTokens(TokenResponse resp, string? existingRefreshToken = null) =>
         new StoredTokens
         {
             AccessToken = resp.AccessToken!,
-            RefreshToken = resp.RefreshToken ?? string.Empty,
+            RefreshToken = resp.RefreshToken ?? existingRefreshToken ?? string.Empty,
             ExpiresAt = DateTimeOffset.UtcNow.AddSeconds(resp.ExpiresIn)
         };
 
@@ -710,6 +912,10 @@ internal sealed class StoredTokens
     [JsonPropertyName("accessToken")] public required string AccessToken { get; set; }
     [JsonPropertyName("refreshToken")] public required string RefreshToken { get; set; }
     [JsonPropertyName("expiresAt")] public DateTimeOffset ExpiresAt { get; set; }
+    [JsonPropertyName("configTenantId")] public string? ConfigTenantId { get; set; }
+    [JsonPropertyName("clientId")] public string? ClientId { get; set; }
+    [JsonPropertyName("authenticatedTenantId")] public string? AuthenticatedTenantId { get; set; }
+    [JsonPropertyName("authenticatedUserId")] public string? AuthenticatedUserId { get; set; }
 }
 
 internal sealed class TokenResponse
@@ -783,4 +989,15 @@ internal sealed class GraphMessageFrom
 [JsonSerializable(typeof(object))]
 internal partial class TeamsJsonContext : JsonSerializerContext
 {
+}
+
+internal sealed class TeamsAuthException : InvalidOperationException
+{
+    public TeamsAuthException(string message, string? errorCode)
+        : base(message)
+    {
+        ErrorCode = errorCode;
+    }
+
+    public string? ErrorCode { get; }
 }
