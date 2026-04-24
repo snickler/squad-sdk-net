@@ -319,37 +319,6 @@ public sealed class EventBusTests
     }
 
     [Fact]
-    public async Task ConcurrentSubscribeEmitDispose_ThreadSafe()
-    {
-        // Arrange
-        var eventBus = new EventBus(NullLogger<EventBus>.Instance);
-
-        // Act - spawn concurrent operations; each subscription unsubscribes quickly
-        // Goal: verify that concurrent subscribe/emit/dispose doesn't crash the dispatcher
-        var tasks = new List<Task>();
-
-        for (int i = 0; i < 5; i++)
-        {
-            var sub = eventBus.Subscribe(SquadEventType.SessionCreated, async evt =>
-            {
-                await Task.CompletedTask;
-            });
-            
-            // Immediately unsubscribe
-            sub.Dispose();
-            
-            // Emit after unsubscribe; dispatcher should handle gracefully
-            tasks.Add(eventBus.EmitAsync(new SquadEvent { Type = SquadEventType.SessionCreated }));
-        }
-
-        // Wait for all emit operations to complete
-        await Task.WhenAll(tasks);
-
-        // Assert - should not crash
-        await eventBus.DisposeAsync();
-    }
-
-    [Fact]
     public async Task SubscribeAll_And_SpecificType_BothReceiveEvent()
     {
         // Arrange
@@ -376,6 +345,228 @@ public sealed class EventBusTests
         await Task.WhenAll(typedReceived.Task, allReceived.Task);
         subscription1.Dispose();
         subscription2.Dispose();
+        await eventBus.DisposeAsync();
+    }
+
+    /// <summary>
+    /// Tests that handler removal is efficient and doesn't block concurrent event dispatch.
+    /// This validates the O(1) removal with ImmutableList.
+    /// </summary>
+    [Fact]
+    public async Task RemoveHandler_DuringDispatch_IsNonBlocking()
+    {
+        // Arrange
+        var eventBus = new EventBus(NullLogger<EventBus>.Instance);
+        var handler1Started = new TaskCompletionSource<bool>();
+        var handler2Executed = new TaskCompletionSource<bool>();
+        var dispatchComplete = new TaskCompletionSource<bool>();
+        var slowHandlerDuration = TimeSpan.FromMilliseconds(100);
+
+        var subscription1 = eventBus.Subscribe(SquadEventType.SessionCreated, async evt =>
+        {
+            handler1Started.SetResult(true);
+            await Task.Delay(slowHandlerDuration);
+        });
+
+        var subscription2 = eventBus.Subscribe(SquadEventType.SessionCreated, async evt =>
+        {
+            handler2Executed.SetResult(true);
+            await Task.CompletedTask;
+        });
+
+        // Act
+        _ = Task.Run(async () =>
+        {
+            await eventBus.EmitAsync(new SquadEvent { Type = SquadEventType.SessionCreated });
+            dispatchComplete.SetResult(true);
+        });
+
+        // Wait for first handler to start
+        await handler1Started.Task;
+
+        // Dispose subscription1 while it's still running
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        subscription1.Dispose();
+        stopwatch.Stop();
+
+        // The dispose should complete immediately (< 50ms), not wait for handler1 to finish
+        Assert.True(stopwatch.ElapsedMilliseconds < 50, 
+            $"Dispose took {stopwatch.ElapsedMilliseconds}ms, expected < 50ms");
+
+        // Handler2 should still execute
+        await handler2Executed.Task;
+        subscription2.Dispose();
+        await eventBus.DisposeAsync();
+    }
+
+    /// <summary>
+    /// Stress test: concurrent subscriptions and unsubscriptions while events are being emitted.
+    /// This validates thread-safety of the lock-free implementation.
+    /// </summary>
+    [Fact]
+    public async Task Concurrent_SubscribeUnsubscribeEmit_ThreadSafe()
+    {
+        // Arrange
+        var eventBus = new EventBus(NullLogger<EventBus>.Instance);
+        var handlerCallCount = 0;
+        var lockObj = new object();
+
+        // Act - Spawn concurrent tasks for subscribe, unsubscribe, and emit
+        var tasks = new List<Task>();
+
+        // Task 1-10: Emit events continuously
+        for (int i = 0; i < 10; i++)
+        {
+            tasks.Add(Task.Run(async () =>
+            {
+                for (int j = 0; j < 10; j++)
+                {
+                    await eventBus.EmitAsync(new SquadEvent { Type = SquadEventType.SessionCreated });
+                    await Task.Delay(1);
+                }
+            }));
+        }
+
+        // Task 11-20: Subscribe and unsubscribe rapidly
+        var subscriptions = new List<IDisposable>();
+        for (int i = 0; i < 10; i++)
+        {
+            tasks.Add(Task.Run(() =>
+            {
+                for (int j = 0; j < 10; j++)
+                {
+                    var sub = eventBus.Subscribe(SquadEventType.SessionCreated, async evt =>
+                    {
+                        lock (lockObj)
+                        {
+                            handlerCallCount++;
+                        }
+                        await Task.CompletedTask;
+                    });
+                    subscriptions.Add(sub);
+                    Task.Delay(1).Wait();
+                    sub.Dispose();
+                }
+            }));
+        }
+
+        // Wait for all tasks
+        await Task.WhenAll(tasks);
+
+        // Assert - We should have received some handler calls (exact count varies due to concurrency)
+        Assert.True(handlerCallCount > 0, "No handlers were called during concurrent stress test");
+        await eventBus.DisposeAsync();
+    }
+
+    /// <summary>
+    /// Tests that many handlers can be added and removed without degrading performance.
+    /// Validates that ImmutableList approach scales better than the original ConcurrentBag rebuild.
+    /// </summary>
+    [Fact]
+    public async Task ManyHandlers_RemovalIsEfficient()
+    {
+        // Arrange
+        var eventBus = new EventBus(NullLogger<EventBus>.Instance);
+        var subscriptions = new List<IDisposable>();
+        const int handlerCount = 1000;
+
+        // Add many handlers
+        for (int i = 0; i < handlerCount; i++)
+        {
+            var sub = eventBus.Subscribe(SquadEventType.SessionCreated, async evt =>
+            {
+                await Task.CompletedTask;
+            });
+            subscriptions.Add(sub);
+        }
+
+        // Act - Remove all handlers and measure time
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        foreach (var sub in subscriptions)
+        {
+            sub.Dispose();
+        }
+        stopwatch.Stop();
+
+        // Assert - Removal should be very fast (each ~O(1) with copy-on-write)
+        // With ConcurrentBag rebuild, this would be O(n^2), taking seconds
+        Assert.True(stopwatch.ElapsedMilliseconds < 1000, 
+            $"Removing {handlerCount} handlers took {stopwatch.ElapsedMilliseconds}ms");
+
+        await eventBus.DisposeAsync();
+    }
+
+    /// <summary>
+    /// Tests that EmitAsync is truly non-blocking and returns before handlers complete.
+    /// </summary>
+    [Fact]
+    public async Task EmitAsync_IsNonBlocking()
+    {
+        // Arrange
+        var eventBus = new EventBus(NullLogger<EventBus>.Instance);
+        var handlerStarted = new TaskCompletionSource<bool>();
+        var slowHandlerDelay = TimeSpan.FromSeconds(1);
+
+        var subscription = eventBus.Subscribe(SquadEventType.SessionCreated, async evt =>
+        {
+            handlerStarted.SetResult(true);
+            await Task.Delay(slowHandlerDelay);
+        });
+
+        // Act
+        var emitStopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var emitTask = eventBus.EmitAsync(new SquadEvent { Type = SquadEventType.SessionCreated });
+        emitStopwatch.Stop();
+
+        // Assert - EmitAsync should return almost instantly
+        Assert.True(emitStopwatch.ElapsedMilliseconds < 100, 
+            $"EmitAsync took {emitStopwatch.ElapsedMilliseconds}ms, should be < 100ms");
+
+        // But handlers are still executing
+        Assert.False(handlerStarted.Task.IsCompleted, "Handler should not have started yet");
+
+        // Wait for handler to start
+        await handlerStarted.Task;
+        subscription.Dispose();
+        await eventBus.DisposeAsync();
+    }
+
+    /// <summary>
+    /// Tests that handler execution order is preserved within a single event type.
+    /// </summary>
+    [Fact]
+    public async Task HandlerExecutionOrder_IsPreserved()
+    {
+        // Arrange
+        var eventBus = new EventBus(NullLogger<EventBus>.Instance);
+        var executionOrder = new List<int>();
+        var lockObj = new object();
+        var allComplete = new TaskCompletionSource<bool>();
+
+        // Add handlers in order
+        for (int i = 0; i < 5; i++)
+        {
+            int handlerId = i;
+            eventBus.Subscribe(SquadEventType.SessionCreated, async evt =>
+            {
+                lock (lockObj)
+                {
+                    executionOrder.Add(handlerId);
+                    if (executionOrder.Count == 5)
+                    {
+                        allComplete.SetResult(true);
+                    }
+                }
+                await Task.CompletedTask;
+            });
+        }
+
+        // Act
+        await eventBus.EmitAsync(new SquadEvent { Type = SquadEventType.SessionCreated });
+
+        // Assert
+        await allComplete.Task;
+        Assert.Equal([0, 1, 2, 3, 4], executionOrder);
         await eventBus.DisposeAsync();
     }
 }
