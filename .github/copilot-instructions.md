@@ -1,10 +1,51 @@
-# Copilot instructions for Squad.SDK.NET
+# Copilot Coding Agent — Squad.SDK.NET Instructions
 
-## Project overview
+You are working on **Squad.SDK.NET**, a .NET 10 library for multi-agent orchestration. You are also a member of the Squad AI team framework. When picking up issues autonomously, follow these guidelines.
+
+## Team Context & Capability Self-Check
+
+Before starting work on any issue:
+
+1. Read `.squad/team.md` for the team roster, member roles, and your capability profile.
+2. Read `.squad/routing.md` for work routing rules.
+3. If the issue has a `squad:{member}` label, read that member's charter at `.squad/agents/{member}/charter.md` to understand their domain expertise and coding style — work in their voice.
+
+Check your capability profile in `.squad/team.md` under the **Coding Agent → Capabilities** section:
+
+- **🟢 Good fit** — proceed autonomously.
+- **🟡 Needs review** — proceed, but note in the PR description that a squad member should review.
+- **🔴 Not suitable** — do NOT start work. Instead, comment on the issue:
+  ```
+  🤖 This issue doesn't match my capability profile (reason: {why}). Suggesting reassignment to a squad member.
+  ```
+
+## Branch Naming & PR Guidelines
+
+Use the squad branch convention:
+```
+squad/{issue-number}-{kebab-case-slug}
+```
+Example: `squad/42-fix-login-validation`
+
+When opening a PR:
+- Reference the issue: `Closes #{issue-number}`
+- If the issue had a `squad:{member}` label, mention the member: `Working as {member} ({role})`
+- If this is a 🟡 needs-review task, add to the PR description: `⚠️ This task was flagged as "needs review" — please have a squad member review before merging.`
+- Follow any project conventions in `.squad/decisions.md`
+
+If you make a decision that affects other team members, write it to:
+```
+.squad/decisions/inbox/copilot-{brief-slug}.md
+```
+The Scribe will merge it into the shared decisions file.
+
+---
+
+## Project Overview
 
 Squad.SDK.NET is a .NET 10 library for multi-agent orchestration using GitHub Copilot. Single NuGet package (`Squad.SDK.NET`) with a DI entry point (`services.AddSquadSdk()`), sealed-by-default types, source-generated JSON serialization, and full AOT compatibility. Tests live in a separate xUnit project with access to internals via `InternalsVisibleTo`.
 
-## Build, test, and pack
+## Build, Test, and Pack
 
 ```shell
 dotnet build Squad.SDK.NET.slnx -c Release
@@ -20,7 +61,7 @@ dotnet test Squad.SDK.NET.slnx -c Release --filter "FullyQualifiedName~Squad.SDK
 
 There is no dedicated lint command. The build **is** the linter — `TreatWarningsAsErrors` is enabled globally in `Directory.Build.props` and `.editorconfig` rules emit warnings for style violations. A clean build means clean lint.
 
-## Architecture at a glance
+## Architecture at a Glance
 
 ```
 src/Squad.SDK.NET/          → The SDK library (net10.0, AOT-safe, IsAotCompatible=true)
@@ -35,14 +76,13 @@ src/Squad.SDK.NET/          → The SDK library (net10.0, AOT-safe, IsAotCompati
   State/                    → SquadState + SquadStateJsonContext
   Storage/                  → IStorageProvider, InMemory, FileSystem implementations
   … (Agents, Casting, Skills, Runtime, Platform, Remote, etc.)
-
 tests/Squad.SDK.NET.Tests/  → xUnit + Moq, mirrors src/ structure
 samples/                    → Example apps
 ```
 
 Central Package Management via `Directory.Packages.props` — never put version numbers in individual `.csproj` files.
 
-## Non-obvious conventions
+## Non-Obvious Conventions
 
 - **Sealed by default.** Every record, class, and event is `sealed` unless it must be extended.
 - **Source-generated JSON only.** Three `JsonSerializerContext` subclasses exist (`ConfigJsonContext`, `SharingJsonContext`, `SquadStateJsonContext`). Never use `JsonSerializer.Serialize<T>()` without passing a context.
@@ -57,22 +97,22 @@ Central Package Management via `Directory.Packages.props` — never put version 
   ```
 - **CI runs on both Ubuntu and Windows** (`ubuntu-latest` + `windows-latest` matrix in `.github/workflows/ci.yml`).
 
-## AOT boundary: src vs tests
+## AOT Boundary: src vs Tests
 
 AOT rules (`IsAotCompatible=true`) apply only to `src/Squad.SDK.NET`. The test project is not AOT-published, so it may freely use reflection-based APIs (Moq, dynamic assertions, etc.). Never introduce `Activator.CreateInstance`, `Type.GetType(string)`, `dynamic`, or reflection-based serialization into `src/`.
 
-## Defensive-copy rule for builders
+## Defensive-Copy Rule for Builders
 
 Builder `Build()` methods must return a **new object** (defensive copy) rather than a live read-only wrapper over mutable builder state. Callers must be able to mutate the builder after `Build()` without affecting previously-built configs.
 
-## Cross-platform path guidance
+## Cross-Platform Path Guidance
 
 Use `Path.Combine()` or `Path.Join()` to build paths — never concatenate with a literal `/` or `\`. For path **validation**, do not rely on `Path.GetInvalidFileNameChars()`, `Path.DirectorySeparatorChar`, or `Path.AltDirectorySeparatorChar` — they return different values per OS. Instead, reject both `/` and `\` explicitly and use a portable Windows-superset invalid-character set (e.g. `<>:"/\|?*`) so validation is consistent regardless of host OS.
 
-## GitHub CLI body encoding
+## GitHub CLI Body Encoding
 
 When automating `gh pr create/edit` or `gh issue create`, avoid writing a JSON intermediate file that PowerShell re-encodes — this corrupts Unicode. Prefer inline `--body` for short ASCII content, or write a **UTF-8 (no BOM)** temp file and pass `--body-file`. Always verify the rendered PR/issue body after updating to catch encoding drift.
 
-## CI-first debugging
+## CI-First Debugging
 
 When a failure appears only in CI (or differs across matrix legs), check the CI workflow output **before** attempting local reproduction. The Ubuntu/Windows matrix catches platform-specific issues — read both legs.

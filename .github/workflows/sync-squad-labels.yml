@@ -15,10 +15,10 @@ jobs:
   sync-labels:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - name: Parse roster and sync labels
-        uses: actions/github-script@v9
+        uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
@@ -103,11 +103,7 @@ jobs:
               { name: 'priority:p2', color: 'FBCA04', description: 'Next sprint' }
             ];
 
-            const SYNC_LABELS = [
-              { name: 'sync', color: 'F9D0C4', description: 'Upstream sync tracking' },
-              { name: 'sync:dev', color: 'FEF2C0', description: 'Changes on upstream dev branch' },
-              { name: 'sync:insider', color: 'C2E0C6', description: 'Changes on upstream insider branch' }
-            ];
+            function slugify(t) { return t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
 
             // Ensure the base "squad" triage label exists
             const labels = [
@@ -116,7 +112,7 @@ jobs:
 
             for (const member of members) {
               labels.push({
-                name: `squad:${member.name.toLowerCase()}`,
+                name: `squad:${slugify(member.name)}`,
                 color: MEMBER_COLOR,
                 description: `Assigned to ${member.name} (${member.role})`
               });
@@ -137,7 +133,6 @@ jobs:
             labels.push(...TYPE_LABELS);
             labels.push(...PRIORITY_LABELS);
             labels.push(...SIGNAL_LABELS);
-            labels.push(...SYNC_LABELS);
 
             // Sync labels (create or update)
             for (const label of labels) {
