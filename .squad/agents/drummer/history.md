@@ -1,5 +1,14 @@
 ## Learnings
 
+### Upstream sync: bradygaster/squad dev (2026-04-24)
+- Analyzed 12 commits from upstream dev (ec19f5e..ec07f38) — no direct .NET SDK changes
+- All commits were JavaScript/CLI/docs: monorepo subfolder support, state backends documentation, CI cleanup, test pattern improvements
+- Cross-platform test isolation pattern: use `os.tmpdir()` for temp dirs (already done in our SDK per prior work)
+- SDK build verified: release build passes, all 690 tests pass, 0 warnings
+- Added `nuget.config` with package source mapping for GitHub.Copilot.SDK (required for enterprise environments)
+- Updated `.sync/upstream-state.json` to lastPortedSha: `ec07f3874126666a5753212c3af92b7054b270c6` and lastChecked timestamp
+- Committed as `061e213b` referencing issue #47
+
 ### Skyflow → Squad rename in tests (2025)
 - Replaced 4 `skyflow-` temp dir prefixes with `squad-` in `StorageStateResolutionTests.cs` (lines 158, 256, 807, 828)
 - Replaced 4 `"skyflow"` service name strings with `"squad-sdk"` in `ConfigAndBuilderParityTests.cs` (lines 427, 840, 849, 998)
