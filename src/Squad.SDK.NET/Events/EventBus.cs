@@ -76,7 +76,9 @@ public sealed class EventBus : IEventBus, IAsyncDisposable
             // Dispatch to type-specific subscribers
             if (_typed.TryGetValue(evt.Type, out var bag))
             {
-                foreach (var handler in bag)
+                // Take snapshot to avoid concurrent modification during enumeration
+                var handlers = bag.ToList();
+                foreach (var handler in handlers)
                 {
                     try 
                     { 
@@ -90,7 +92,8 @@ public sealed class EventBus : IEventBus, IAsyncDisposable
             }
 
             // Dispatch to all-subscribers
-            foreach (var handler in _allSubscribers)
+            var allHandlers = _allSubscribers.ToList();
+            foreach (var handler in allHandlers)
             {
                 try 
                 { 
