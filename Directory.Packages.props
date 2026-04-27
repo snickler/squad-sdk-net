@@ -1,6 +1,6 @@
 <Project>
   <ItemGroup>
-    <PackageVersion Include="GitHub.Copilot.SDK" Version="0.2.2" />
+    <PackageVersion Include="GitHub.Copilot.SDK" Version="0.3.0" />
     <PackageVersion Include="Microsoft.Extensions.AI.Abstractions" Version="10.5.0" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.7" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.7" />
