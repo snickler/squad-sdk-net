@@ -94,7 +94,7 @@ jobs:
         run: dotnet pack src/Squad.SDK.NET/Squad.SDK.NET.csproj --no-build -c Release -o ./artifacts
 
       - name: Attest build provenance
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: './artifacts/*.nupkg'
 
