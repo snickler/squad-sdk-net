@@ -1,8 +1,8 @@
 {
   "upstream": "bradygaster/squad",
   "dev": {
-    "lastPortedSha": "ec07f3874126666a5753212c3af92b7054b270c6",
-    "lastChecked": "2026-04-24T10:58:57.074Z"
+    "lastPortedSha": "ef3028692df38c74eef8f6807e29e74ba73a8ce8",
+    "lastChecked": "2026-04-27T14:40:13.584Z"
   },
   "insider": {
     "lastPortedSha": "88d1696a46440db01a3df4d93166f4ae3f3e2731",

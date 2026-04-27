@@ -95,6 +95,85 @@ public static class SquadResolver
         return dir;
     }
 
+    /// <summary>
+    /// Resolves the squad home directory — a roaming squad root for personal agents and presets.
+    /// </summary>
+    /// <remarks>
+    /// Resolution order:
+    /// <list type="number">
+    ///   <item><description><c>SQUAD_HOME</c> environment variable (explicit override, e.g. a synced folder)</description></item>
+    ///   <item><description><c>~/.squad/</c> (conventional default — user's home directory)</description></item>
+    /// </list>
+    /// Unlike <see cref="ResolveGlobalSquadPath"/> (which returns the platform-specific app config directory),
+    /// squad home is a <em>squad root</em> — it can contain <c>agents/</c>, <c>presets/</c>, etc.
+    /// </remarks>
+    /// <param name="create">Whether to create the directory if it does not exist (default: <see langword="false"/>).</param>
+    /// <returns>
+    /// Absolute path to the squad home directory, or <see langword="null"/> if it does not exist and
+    /// <paramref name="create"/> is <see langword="false"/>.
+    /// </returns>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when <c>SQUAD_HOME</c> points to a path that exists but is not a directory.
+    /// </exception>
+    public static string? ResolveSquadHome(bool create = false)
+    {
+        var envHome = Environment.GetEnvironmentVariable("SQUAD_HOME");
+        var homeDir = !string.IsNullOrEmpty(envHome)
+            ? Path.GetFullPath(envHome)
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".squad");
+
+        if (Directory.Exists(homeDir))
+            return homeDir;
+
+        if (File.Exists(homeDir))
+            throw new InvalidOperationException($"SQUAD_HOME path exists but is not a directory: {homeDir}");
+
+        if (create)
+        {
+            Directory.CreateDirectory(homeDir);
+            return homeDir;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Ensures the squad home directory exists with standard structure.
+    /// Creates <c>agents/</c> and <c>presets/</c> subdirectories.
+    /// </summary>
+    /// <remarks>This method is idempotent — safe to call multiple times.</remarks>
+    /// <returns>Absolute path to the squad home directory.</returns>
+    public static string EnsureSquadHome()
+    {
+        var homeDir = ResolveSquadHome(create: true)!;
+
+        var agentsDir = Path.Combine(homeDir, "agents");
+        if (!Directory.Exists(agentsDir))
+            Directory.CreateDirectory(agentsDir);
+
+        var presetsDir = Path.Combine(homeDir, "presets");
+        if (!Directory.Exists(presetsDir))
+            Directory.CreateDirectory(presetsDir);
+
+        return homeDir;
+    }
+
+    /// <summary>
+    /// Resolves the presets directory within squad home (<c>&lt;squad-home&gt;/presets/</c>).
+    /// </summary>
+    /// <returns>
+    /// Absolute path to the presets directory, or <see langword="null"/> if squad home does not exist
+    /// or has no <c>presets/</c> subdirectory.
+    /// </returns>
+    public static string? ResolvePresetsDir()
+    {
+        var homeDir = ResolveSquadHome();
+        if (homeDir is null) return null;
+
+        var presetsDir = Path.Combine(homeDir, "presets");
+        return Directory.Exists(presetsDir) ? presetsDir : null;
+    }
+
     /// <summary>Determines whether the given directory is inside a git worktree.</summary>
     /// <param name="dir">Directory to check; defaults to the current directory.</param>
     /// <returns><see langword="true"/> if a <c>.git</c> file (not directory) exists, indicating a worktree.</returns>

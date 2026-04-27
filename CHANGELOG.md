@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- `SQUAD_HOME` environment variable support: `SquadResolver.ResolveSquadHome()` resolves a roaming squad root (env override → `~/.squad/`) (ports upstream/dev@ef30286)
+- `SquadResolver.EnsureSquadHome()` — creates squad home with `agents/` and `presets/` subdirectories (idempotent)
+- `SquadResolver.ResolvePresetsDir()` — resolves `<squad-home>/presets/` path
+- `Squad.SDK.NET.Presets` namespace with preset system: `PresetManifest`, `PresetAgent`, `PresetApplyResult`, `PresetApplyStatus` types
+- `PresetLoader` with `ListPresets`, `LoadPreset`, `ApplyPreset`, `SavePreset`, `InstallPreset`, `SeedBuiltinPresets` operations
+- Built-in `default` preset bundled as embedded resources: 5 starter agents (lead, reviewer, devrel, security, docs) with full charter templates
+
 ## [0.1.0] - 2026-04-04
 
 ### Added
