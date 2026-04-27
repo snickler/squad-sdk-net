@@ -84,11 +84,11 @@ public sealed class SquadSession : ISquadSession
         return sdkOptions;
     }
 
-    private static UserMessageDataAttachmentsItem MapAttachment(SquadAttachment attachment)
+    private static UserMessageAttachment MapAttachment(SquadAttachment attachment)
     {
         if (attachment.Data is not null)
         {
-            return new UserMessageDataAttachmentsItemBlob
+            return new UserMessageAttachmentBlob
             {
                 Data        = attachment.Data,
                 MimeType    = attachment.MimeType ?? string.Empty,
@@ -96,7 +96,7 @@ public sealed class SquadSession : ISquadSession
             };
         }
 
-        return new UserMessageDataAttachmentsItemFile
+        return new UserMessageAttachmentFile
         {
             Path        = attachment.Path ?? string.Empty,
             DisplayName = attachment.DisplayName ?? string.Empty
