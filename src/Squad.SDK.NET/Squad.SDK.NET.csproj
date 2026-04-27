@@ -35,6 +35,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Presets\Builtin\**\*" Exclude="Presets\Builtin\**\*.cs" />
+    <EmbeddedResource Update="Presets\Builtin\**\*">
+      <LogicalName>Squad.SDK.NET.Presets.Builtin.$([System.String]::new('%(RecursiveDir)%(Filename)%(Extension)').Replace('\','/'))</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="Squad.SDK.NET.Tests" />
   </ItemGroup>
 
