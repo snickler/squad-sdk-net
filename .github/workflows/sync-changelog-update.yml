@@ -129,9 +129,9 @@ jobs:
             echo "No changelog changes to commit"
             echo "committed=false" >> "$GITHUB_OUTPUT"
           else
-            # Pull with rebase to handle any commits that landed since checkout
-            git pull --rebase origin dev
             git commit -m "chore: record sync in CHANGELOG (closes #${{ github.event.issue.number }})"
+            # Rebase the new changelog commit onto any commits that landed since checkout
+            git pull --rebase origin dev
             git push origin dev
             echo "committed=true" >> "$GITHUB_OUTPUT"
           fi
