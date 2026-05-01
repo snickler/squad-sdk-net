@@ -118,9 +118,7 @@ public sealed class RepositoryTemplateConsistencyTests : IDisposable
         => Path.Combine(new[] { _repoRoot }.Concat(segments).ToArray());
 
     private string RepoPath(string relativePath)
-        => Path.Combine(new[] { _repoRoot }
-            .Concat(relativePath.Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries))
-            .ToArray());
+        => RepoPath(relativePath.Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries));
 
     private static string FindRepositoryRoot()
     {
