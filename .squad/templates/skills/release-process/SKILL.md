@@ -1,6 +1,6 @@
 ---
 name: "release-process"
-description: "Step-by-step release checklist for Squad — prevents v0.8.22-style disasters"
+description: "Step-by-step release checklist for Squad — prevents v0.8.22 and v0.9.4-style disasters"
 domain: "release-management"
 confidence: "high"
 source: "team-decision"
@@ -8,7 +8,9 @@ source: "team-decision"
 
 ## Context
 
-This is the **definitive release runbook** for Squad. Born from the v0.8.22 release disaster (4-part semver mangled by npm, draft release never triggered publish, wrong NPM_TOKEN type, 6+ hours of broken `latest` dist-tag).
+This is the **definitive release runbook** for Squad. Born from the v0.8.22 release disaster (4-part semver mangled by npm, draft release never triggered publish, wrong NPM_TOKEN type, 6+ hours of broken `latest` dist-tag) and hardened by v0.9.4 lessons (root package.json drift, CHANGELOG validation, GITHUB_TOKEN propagation limitation — PRs #1042, #1043, #1044).
+
+See also: `.squad/skills/release-process/SKILL.md` for the team-level skill with full incident history.
 
 **Rule:** No agent releases Squad without following this checklist. No exceptions. No improvisation.
 
@@ -93,6 +95,36 @@ $env:SKIP_BUILD_BUMP = "1"
 
 **If not set:** `bump-build.mjs` will run and mutate versions. This causes disasters (see v0.8.22).
 
+### 5. Root package.json Version Sync (v0.9.4 Lesson — PR #1043)
+
+**Rule:** `squad-release.yml` reads version from ROOT `package.json` (lines 31-35). If root is behind sub-packages (e.g., 0.9.1 while sub-packages are 0.9.4), the release workflow FAILS.
+
+```bash
+# Verify all 3 package.json files match
+grep '"version"' package.json packages/squad-sdk/package.json packages/squad-cli/package.json
+# All 3 MUST show the same version
+
+# Fix if mismatched:
+npm version $VERSION --workspaces --include-workspace-root --no-git-tag-version
+```
+
+**If versions don't match:** STOP. Run the `npm version` command above. This was the root cause of the v0.9.4 release delay.
+
+### 6. CHANGELOG.md Version Entry (v0.9.4 Lesson — PR #1042)
+
+**Rule:** `squad-release.yml` validates that `CHANGELOG.md` contains `## [$VERSION]`. An `[Unreleased]` section alone is NOT sufficient.
+
+```bash
+# Check CHANGELOG has the version entry
+grep -q "## \[$VERSION\]" CHANGELOG.md && echo "OK" || echo "MISSING — add version section"
+```
+
+**Before promoting to main:**
+1. Convert `[Unreleased]` to `[$VERSION] - YYYY-MM-DD` in CHANGELOG.md
+2. Add a fresh `[Unreleased]` section above it
+
+**If `## [$VERSION]` is missing:** STOP. Update CHANGELOG.md before promoting.
+
 ---
 
 ## Release Workflow
@@ -144,10 +176,7 @@ git push origin "v$VERSION"
 
 ```bash
 # Create GitHub Release (NOT draft)
-gh release create "v$VERSION" \
-  --title "v$VERSION" \
-  --notes "Release notes go here" \
-  --latest
+gh release create "v$VERSION"   --title "v$VERSION"   --notes "Release notes go here"   --latest
 
 # Verify release is PUBLISHED (not draft)
 gh release view "v$VERSION"
@@ -278,14 +307,27 @@ git push origin dev
 If `publish.yml` workflow fails or needs to be bypassed, use `workflow_dispatch` to manually trigger publish.
 
 ```bash
-# Trigger manual publish
-gh workflow run publish.yml -f version="0.8.22"
+# Trigger manual publish — ALWAYS use --ref main
+gh workflow run squad-npm-publish.yml --ref main -f version="0.8.22"
 
 # Monitor the run
 gh run watch
 ```
 
 **Rule:** Only use this if automated publish failed. Always investigate why automation failed and fix it for next release.
+
+### GITHUB_TOKEN Event Propagation Limitation (v0.9.4 — CRITICAL)
+
+When `squad-release.yml` creates a GitHub Release using the default `GITHUB_TOKEN`, the `release: published` event does **NOT** trigger `squad-npm-publish.yml`. This is a GitHub security feature to prevent infinite workflow loops.
+
+**After the release workflow succeeds**, check if `squad-npm-publish.yml` started automatically. If it didn't:
+```bash
+gh workflow run squad-npm-publish.yml --ref main -f version=X.Y.Z
+```
+
+IMPORTANT: Use `--ref main` — the repo default branch is `dev`, and the workflow must run against `main` where the release tag and artifacts exist.
+
+**Permanent fix (TODO):** Use a PAT or GitHub App token in `squad-release.yml` instead of `GITHUB_TOKEN`.
 
 ---
 
@@ -372,52 +414,38 @@ git push origin main
 **Root cause:** Release was created as a draft. Draft releases don't emit `release: published` event.  
 **Fix:** Edit release and change to published: `gh release edit "v$VERSION" --draft=false`. Workflow should trigger immediately.
 
+### Root package.json Version Drift (v0.9.4)
+
+**Symptom:** `squad-release.yml` fails because CHANGELOG validation reads the wrong version.  
+**Root cause:** Root `package.json` version drifted from the workspace packages.  
+**Fix:** Always run `npm version $VERSION --workspaces --include-workspace-root --no-git-tag-version` and verify all three files match.
+
+### CHANGELOG Version Entry Missing (v0.9.4)
+
+**Symptom:** `squad-release.yml` exits with "Version X not found in CHANGELOG.md".  
+**Root cause:** `CHANGELOG.md` only has `[Unreleased]`, not `## [$VERSION]`.  
+**Fix:** Convert `[Unreleased]` to `[$VERSION] - YYYY-MM-DD` before promoting to main, then add a new `[Unreleased]` section above it.
+
+### Publish Workflow Never Triggered (GITHUB_TOKEN Limitation)
+
+**Symptom:** GitHub Release exists but `squad-npm-publish.yml` never starts.  
+**Root cause:** Release was created by `GITHUB_TOKEN`, which cannot trigger downstream workflows on `release: published`.  
+**Fix:** Manually run `gh workflow run squad-npm-publish.yml --ref main -f version=X.Y.Z`.
+
 ---
 
 ## Validation Checklist
 
 Before starting ANY release, confirm:
 
-- [ ] Version is valid semver: `node -p "require('semver').valid('VERSION')"` returns the version string (NOT null)
-- [ ] NPM_TOKEN is an Automation token (no 2FA): `npm token list` shows `read-write` without OTP requirement
-- [ ] Branch is clean: `git status` shows "nothing to commit, working tree clean"
-- [ ] Tag doesn't exist: `git tag -l "vVERSION"` returns empty
-- [ ] `SKIP_BUILD_BUMP=1` is set: `echo $SKIP_BUILD_BUMP` returns `1`
+- [ ] Version is valid semver (`semver.valid()` passes)
+- [ ] NPM_TOKEN is Automation type
+- [ ] Working tree is clean
+- [ ] Tag doesn't already exist
+- [ ] `SKIP_BUILD_BUMP=1` is set
+- [ ] Root `package.json` matches both workspace package versions
+- [ ] `CHANGELOG.md` contains `## [$VERSION]`
+- [ ] No `file:` or `link:` dependencies in package.json files
+- [ ] No draft release exists for this version
 
-Before creating GitHub Release:
-
-- [ ] All 3 package.json files have matching versions: `grep '"version"' package.json packages/*/package.json`
-- [ ] Commit is pushed: `git log origin/main..main` returns empty
-- [ ] Tag is pushed: `git ls-remote --tags origin vVERSION` returns the tag SHA
-
-After GitHub Release:
-
-- [ ] Release is published (NOT draft): `gh release view "vVERSION"` output doesn't contain "(draft)"
-- [ ] Workflow is running: `gh run list --workflow=publish.yml --limit 1` shows "in_progress"
-
-After workflow completes:
-
-- [ ] Both jobs succeeded: Workflow shows green checkmarks
-- [ ] SDK on npm: `npm view @bradygaster/squad-sdk version` returns correct version
-- [ ] CLI on npm: `npm view @bradygaster/squad-cli version` returns correct version
-- [ ] `latest` tags correct: `npm dist-tag ls @bradygaster/squad-sdk` shows `latest: VERSION`
-- [ ] Packages install: `npm install @bradygaster/squad-cli` succeeds
-
-After dev sync:
-
-- [ ] dev branch has next preview version: `git show dev:package.json | grep version` shows next preview
-
----
-
-## Post-Mortem Reference
-
-This skill was created after the v0.8.22 release disaster. Full retrospective: `.squad/decisions/inbox/keaton-v0822-retrospective.md`
-
-**Key learnings:**
-1. No release without a runbook = improvisation = disaster
-2. Semver validation is mandatory — 4-part versions break npm
-3. NPM_TOKEN type matters — User tokens with 2FA fail in CI
-4. Draft releases are a footgun — they don't trigger automation
-5. Retry logic is essential — npm propagation takes time
-
-**Never again.**
+If ANY item is unchecked, STOP. Fix it before releasing.
