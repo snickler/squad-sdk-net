@@ -4,6 +4,31 @@ namespace Squad.SDK.NET.Tests;
 
 public sealed class RepositoryTemplateConsistencyTests : IDisposable
 {
+    private static readonly string[] SkillFilesWithPortedFrontmatter =
+    [
+        ".copilot/skills/cli-wiring/SKILL.md",
+        ".copilot/skills/model-selection/SKILL.md",
+        ".copilot/skills/nap/SKILL.md",
+        ".copilot/skills/personal-squad/SKILL.md",
+        ".squad/templates/skills/cli-wiring/SKILL.md",
+        ".squad/templates/skills/model-selection/SKILL.md",
+        ".squad/templates/skills/nap/SKILL.md",
+        ".squad/templates/skills/personal-squad/SKILL.md",
+        "src/Squad.SDK.NET/Templates/skills/cli-wiring/SKILL.md",
+        "src/Squad.SDK.NET/Templates/skills/cross-machine-coordination/SKILL.md",
+        "src/Squad.SDK.NET/Templates/skills/model-selection/SKILL.md",
+        "src/Squad.SDK.NET/Templates/skills/nap/SKILL.md",
+        "src/Squad.SDK.NET/Templates/skills/personal-squad/SKILL.md",
+        "src/Squad.SDK.NET/Templates/skills/ralph-two-pass-scan/SKILL.md"
+    ];
+
+    private static readonly string[] ReleaseProcessSkillFiles =
+    [
+        ".copilot/skills/release-process/SKILL.md",
+        ".squad/templates/skills/release-process/SKILL.md",
+        "src/Squad.SDK.NET/Templates/skills/release-process/SKILL.md"
+    ];
+
     private readonly string _tempDir;
     private readonly string _repoRoot;
 
@@ -60,8 +85,40 @@ public sealed class RepositoryTemplateConsistencyTests : IDisposable
         Assert.False(content.Contains("{today}", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void PortedSkillFiles_IncludeYamlFrontmatter()
+    {
+        foreach (var relativePath in SkillFilesWithPortedFrontmatter)
+        {
+            var content = File.ReadAllText(RepoPath(relativePath));
+
+            Assert.StartsWith("---", content);
+            Assert.Contains("\nname:", content, StringComparison.Ordinal);
+            Assert.Contains("\ndescription:", content, StringComparison.Ordinal);
+            Assert.Contains("\ndomain:", content, StringComparison.Ordinal);
+            Assert.Contains("\nconfidence:", content, StringComparison.Ordinal);
+            Assert.Contains("\nsource:", content, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void ReleaseProcessSkills_IncludeV094ReleaseLessons()
+    {
+        foreach (var relativePath in ReleaseProcessSkillFiles)
+        {
+            var content = File.ReadAllText(RepoPath(relativePath));
+
+            Assert.Contains("v0.9.4", content, StringComparison.Ordinal);
+            Assert.Contains("CHANGELOG", content, StringComparison.Ordinal);
+            Assert.Contains("GITHUB_TOKEN", content, StringComparison.Ordinal);
+        }
+    }
+
     private string RepoPath(params string[] segments)
         => Path.Combine(new[] { _repoRoot }.Concat(segments).ToArray());
+
+    private string RepoPath(string relativePath)
+        => Path.Combine(_repoRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
 
     private static string FindRepositoryRoot()
     {
