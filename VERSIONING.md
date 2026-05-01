@@ -17,20 +17,20 @@ MAJOR.MINOR.PATCH[-PRERELEASE]
 
 ### Examples
 
-| Version             | Meaning                                |
-|---------------------|----------------------------------------|
-| `0.1.0`             | First stable preview release           |
-| `0.2.0-preview.1`   | Preview of next minor release          |
-| `0.2.0-rc.1`        | Release candidate                      |
-| `0.2.0`             | Stable minor release                   |
-| `1.0.0`             | First production-ready release         |
+| Version               | Meaning                                |
+|-----------------------|----------------------------------------|
+| `0.9.4`               | Stable release (tracking upstream)     |
+| `0.9.5-preview.1`     | Preview of next minor release          |
+| `0.9.5-rc.1`          | Release candidate                      |
+| `0.9.5`               | Stable minor release                   |
+| `1.0.0`               | First production-ready release         |
 
 ## Version Source of Truth
 
 The canonical version lives in `src/Squad.SDK.NET/Squad.SDK.NET.csproj`:
 
 ```xml
-<Version>0.1.0</Version>
+<Version>0.9.5-preview.1</Version>
 ```
 
 All release tooling validates that the git tag matches this value.
@@ -41,10 +41,10 @@ Use `scripts/bump-version.ps1` to update the version in one step. It updates `<V
 
 ```powershell
 # Bump to a prerelease (e.g., on the dev branch after a stable release)
-./scripts/bump-version.ps1 -Version 0.2.0-preview.1
+./scripts/bump-version.ps1 -Version 0.9.6-preview.1
 
 # Bump to stable for an upcoming release
-./scripts/bump-version.ps1 -Version 0.2.0
+./scripts/bump-version.ps1 -Version 0.9.5
 ```
 
 **Stable release behavior:** converts the `[Unreleased]` section in `CHANGELOG.md` into a versioned entry and inserts a fresh `[Unreleased]` placeholder above it.
@@ -57,20 +57,20 @@ Use `scripts/bump-version.ps1` to update the version in one step. It updates `<V
 
 ```powershell
 # From the repo root (Windows, macOS, or Linux with pwsh installed)
-./scripts/bump-version.ps1 -Version 0.2.0
+./scripts/bump-version.ps1 -Version 0.9.5
 
 # Review CHANGELOG.md — fill in any missing release notes
 # Then commit
 git add -A
-git commit -m "chore: bump version to 0.2.0"
+git commit -m "chore: bump version to 0.9.5"
 ```
 
 ### 2. Merge and tag
 
 ```bash
 # Merge to main (via pull request), then:
-git tag v0.2.0
-git push origin v0.2.0
+git tag v0.9.5
+git push origin v0.9.5
 ```
 
 ### 3. Automated release

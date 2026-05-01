@@ -21,11 +21,11 @@
 
 .EXAMPLE
     # Bump to next preview on the dev branch
-    ./scripts/bump-version.ps1 -Version 0.2.0-preview.1
+    ./scripts/bump-version.ps1 -Version 0.9.6-preview.1
 
 .EXAMPLE
     # Bump to stable for a release
-    ./scripts/bump-version.ps1 -Version 0.2.0
+    ./scripts/bump-version.ps1 -Version 0.9.5
 
 .LINK
     VERSIONING.md
