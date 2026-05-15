@@ -55,7 +55,7 @@ squad-sdk-net/
 │   ├── ISSUE_TEMPLATE/         # Bug report & feature request templates
 │   ├── PULL_REQUEST_TEMPLATE.md
 │   ├── workflows/
-│   │   ├── ci.yml              # CI (dev pushes, PR validation, changeset gate)
+│   │   ├── ci.yml              # CI pipeline with multi-OS matrix (Ubuntu + Windows), code coverage, pack validation, and changeset gate for SDK changes
 │   │   ├── codeql.yml          # CodeQL security scanning
 │   │   ├── dependency-review.yml # Dependency vulnerability review
 │   │   ├── preview.yml         # Preview branch validation

@@ -28,7 +28,9 @@ jobs:
           $baseSha = '${{ github.event.pull_request.base.sha }}'
           $headSha = '${{ github.event.pull_request.head.sha }}'
           $changedFiles = @(git diff --name-only "$baseSha...$headSha")
-          $sdkChanges = @($changedFiles | Where-Object { $_ -like 'src/Squad.SDK.NET/*' })
+          # Only require changesets for C# source code changes, not for csproj-only changes
+          # (e.g., Dependabot dependency updates). This keeps Dependabot PRs self-mergeable.
+          $sdkChanges = @($changedFiles | Where-Object { $_ -like 'src/Squad.SDK.NET/**/*.cs' })
 
           if ($sdkChanges.Count -eq 0) {
               Write-Host 'No SDK source changes detected — changeset not required.'

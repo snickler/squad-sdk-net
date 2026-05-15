@@ -27,7 +27,7 @@ jobs:
       - name: Read release candidate version
         id: version
         run: |
-          VERSION=$(dotnet msbuild src/Squad.SDK.NET/Squad.SDK.NET.csproj -getProperty:Version)
+          VERSION=$(dotnet msbuild src/Squad.SDK.NET/Squad.SDK.NET.csproj -getProperty:Version -nologo | tr -d '\r\n')
           if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "::error::Preview must carry a stable SemVer version. Found '$VERSION'."
             exit 1

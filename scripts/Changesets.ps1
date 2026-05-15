@@ -7,7 +7,7 @@ param(
 
     [string]$PackageId = 'Squad.SDK.NET',
 
-    [string]$ProjectFile = 'src\Squad.SDK.NET\Squad.SDK.NET.csproj',
+    [string]$ProjectFile = 'src/Squad.SDK.NET/Squad.SDK.NET.csproj',
 
     [string]$ChangelogFile = 'CHANGELOG.md',
 
@@ -241,12 +241,29 @@ function Update-Changelog {
     $entryLines.Add('')
     $entryText = ($entryLines -join "`n")
 
-    $match = [regex]::Match($existing, '(?m)^## \[')
-    if ($match.Success) {
-        $updated = $existing.Insert($match.Index, $entryText)
+    # Find the Unreleased section to insert after it (Keep-a-Changelog standard)
+    $unreleasedMatch = [regex]::Match($existing, '(?m)^## \[Unreleased\]')
+    if ($unreleasedMatch.Success) {
+        # Find the next ## [ heading after Unreleased (the previous release)
+        $nextReleaseMatch = [regex]::Match($existing, '(?m)^## \[', $unreleasedMatch.Index + $unreleasedMatch.Length)
+        if ($nextReleaseMatch.Success) {
+            # Insert between Unreleased and the next release
+            $updated = $existing.Insert($nextReleaseMatch.Index, $entryText)
+        }
+        else {
+            # No existing releases, append after Unreleased section
+            $updated = $existing.TrimEnd() + "`n`n" + $entryText
+        }
     }
     else {
-        $updated = $existing.TrimEnd() + "`n`n" + $entryText
+        # No Unreleased section, fall back to inserting before first ## [ (backward compatibility)
+        $match = [regex]::Match($existing, '(?m)^## \[')
+        if ($match.Success) {
+            $updated = $existing.Insert($match.Index, $entryText)
+        }
+        else {
+            $updated = $existing.TrimEnd() + "`n`n" + $entryText
+        }
     }
 
     Write-Utf8File -Path $changelogPath -Content $updated

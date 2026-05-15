@@ -17,6 +17,8 @@ public sealed class ChangesetScriptTests : IDisposable
     [Fact]
     public void Status_WithPendingChangesets_ReportsHighestBumpAndNextVersion()
     {
+        SkipIfPowerShellNotAvailable();
+
         CreateRepoFixture("1.2.3");
         WriteChangeset("alpha-change.md", """
             ---
@@ -44,6 +46,8 @@ public sealed class ChangesetScriptTests : IDisposable
     [Fact]
     public void Apply_WithPendingChangesets_BumpsVersionUpdatesChangelogAndDeletesChangesets()
     {
+        SkipIfPowerShellNotAvailable();
+
         CreateRepoFixture("0.4.0");
         WriteChangeset("release-flow.md", """
             ---
@@ -71,6 +75,8 @@ public sealed class ChangesetScriptTests : IDisposable
     [Fact]
     public void Status_WithRequireNoPending_FailsWhenChangesetsExist()
     {
+        SkipIfPowerShellNotAvailable();
+
         CreateRepoFixture("2.0.0");
         WriteChangeset("breaking-change.md", """
             ---
@@ -141,10 +147,13 @@ public sealed class ChangesetScriptTests : IDisposable
 
     private ScriptResult RunScript(string arguments)
     {
+        var pwshExe = GetPowerShellExecutable();
+        Assert.NotNull(pwshExe); // Should have been checked by test before calling
+
         var scriptPath = Path.Combine(_repoRoot, "scripts", "Changesets.ps1");
         var startInfo = new ProcessStartInfo
         {
-            FileName = "pwsh",
+            FileName = pwshExe,
             Arguments = $"-NoProfile -File \"{scriptPath}\" -RepoRoot \"{_tempRoot}\" {arguments}",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -160,6 +169,66 @@ public sealed class ChangesetScriptTests : IDisposable
         process.WaitForExit();
 
         return new ScriptResult(process.ExitCode, stdout, stderr);
+    }
+
+    /// <summary>
+    /// Skips the current test if PowerShell is not available on the system.
+    /// </summary>
+    private static void SkipIfPowerShellNotAvailable()
+    {
+        if (GetPowerShellExecutable() is null)
+        {
+            throw new SkipException("PowerShell is not available. Install PowerShell 7+ (pwsh) or use Windows PowerShell (powershell.exe) to run these tests.");
+        }
+    }
+
+    /// <summary>
+    /// Gets the path to a PowerShell executable, trying pwsh first, then falling back to powershell.exe on Windows.
+    /// </summary>
+    /// <returns>The PowerShell executable name/path, or null if PowerShell is not available.</returns>
+    private static string? GetPowerShellExecutable()
+    {
+        // Try pwsh first (cross-platform PowerShell 7+)
+        if (IsCommandAvailable("pwsh"))
+            return "pwsh";
+
+        // Fall back to Windows PowerShell on Windows
+        if (OperatingSystem.IsWindows() && IsCommandAvailable("powershell"))
+            return "powershell";
+
+        return null; // Not available
+    }
+
+    /// <summary>
+    /// Checks if a command is available in the system PATH.
+    /// </summary>
+    /// <param name="command">The command to check for.</param>
+    /// <returns>True if the command is available, false otherwise.</returns>
+    private static bool IsCommandAvailable(string command)
+    {
+        try
+        {
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = command,
+                Arguments = "-Version",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            using var process = Process.Start(startInfo);
+            if (process is null)
+                return false;
+
+            process.WaitForExit();
+            return process.ExitCode == 0;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static string FindRepoRoot()

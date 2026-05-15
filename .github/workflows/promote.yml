@@ -58,6 +58,9 @@ jobs:
             echo "preview branch does not exist yet — it will be seeded from dev"
           fi
 
+      # NOTE: Push using GITHUB_TOKEN does NOT trigger downstream workflows (GitHub limitation).
+      # The preview.yml workflow will NOT auto-run after this push.
+      # To validate preview after promotion, manually trigger the Preview Validation workflow.
       - name: Merge dev into preview and apply changesets
         shell: bash
         run: |
@@ -69,10 +72,18 @@ jobs:
             git checkout -B preview origin/dev
           fi
 
-          git merge origin/dev --no-commit --no-ff -X theirs
+          # Attempt standard merge without automatic conflict resolution
+          # Using -X theirs would silently discard preview-only hotfixes during conflicts
+          if ! git merge origin/dev --no-commit --no-ff; then
+            echo "::error::Merge conflicts detected between dev and preview. This likely means preview has hotfixes that conflict with dev changes."
+            echo "::error::Manual resolution required to avoid destroying preview-only changes."
+            echo "::error::Please resolve conflicts locally and push, or reset preview to dev if hotfixes have been released."
+            exit 1
+          fi
+
           pwsh -NoProfile -File ./scripts/Changesets.ps1 -Operation apply
 
-          VERSION=$(dotnet msbuild src/Squad.SDK.NET/Squad.SDK.NET.csproj -getProperty:Version)
+          VERSION=$(dotnet msbuild src/Squad.SDK.NET/Squad.SDK.NET.csproj -getProperty:Version -nologo | tr -d '\r\n')
           git add -A
 
           if git diff --cached --quiet; then
@@ -126,7 +137,7 @@ jobs:
           fi
 
           git checkout -B preview origin/preview
-          VERSION=$(dotnet msbuild src/Squad.SDK.NET/Squad.SDK.NET.csproj -getProperty:Version)
+          VERSION=$(dotnet msbuild src/Squad.SDK.NET/Squad.SDK.NET.csproj -getProperty:Version -nologo | tr -d '\r\n')
 
           if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "::error::Preview must carry a stable SemVer version. Found '$VERSION'."
@@ -142,6 +153,9 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_ENV"
           echo "✅ Preview is release-ready"
 
+      # NOTE: Push using GITHUB_TOKEN does NOT trigger downstream workflows (GitHub limitation).
+      # The release.yml workflow will NOT auto-run after this push to main.
+      # To trigger release after promotion, manually trigger the Release workflow OR use a PAT with workflow permissions.
       - name: Merge preview into main and sync main back to dev
         shell: bash
         run: |
