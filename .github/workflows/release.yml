@@ -2,7 +2,7 @@ name: Release
 
 on:
   push:
-    tags: ['v*']
+    branches: [main]
 
 concurrency:
   group: release-${{ github.ref }}
@@ -10,60 +10,67 @@ concurrency:
 
 jobs:
   validate:
-    name: Validate release tag
+    name: Validate release candidate
     runs-on: ubuntu-latest
     permissions:
       contents: read
     outputs:
       version: ${{ steps.version.outputs.version }}
-      is-prerelease: ${{ steps.version.outputs.is-prerelease }}
+      tag: ${{ steps.version.outputs.tag }}
+      tag-exists: ${{ steps.tag.outputs.exists }}
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
       - name: Extract and validate version
         id: version
         run: |
-          TAG="${GITHUB_REF#refs/tags/v}"
+          VERSION=$(dotnet msbuild src/Squad.SDK.NET/Squad.SDK.NET.csproj -getProperty:Version -nologo | tr -d '\r\n')
+          TAG="v$VERSION"
 
-          if [[ ! "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
-            echo "::error::Tag 'v$TAG' does not match SemVer format (MAJOR.MINOR.PATCH[-PRERELEASE])"
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Main releases must use a stable SemVer version. Found '$VERSION'."
             exit 1
           fi
 
-          if [[ "$TAG" == *-* ]]; then
-            echo "is-prerelease=true" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "✅ Release version: $VERSION"
+
+      - name: Validate changelog entry
+        run: |
+          if ! grep -q "## \[${{ steps.version.outputs.version }}\]" CHANGELOG.md 2>/dev/null; then
+            echo "::error::Version ${{ steps.version.outputs.version }} not found in CHANGELOG.md."
+            exit 1
+          fi
+          echo "✅ CHANGELOG entry found"
+
+      - name: Ensure no pending changesets remain
+        shell: pwsh
+        run: |
+          & ./scripts/Changesets.ps1 -Operation status -RequireNoPending
+
+      - name: Check whether the release tag already exists
+        id: tag
+        run: |
+          if git rev-parse "refs/tags/${{ steps.version.outputs.tag }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "⏭️ Tag ${{ steps.version.outputs.tag }} already exists — skipping release."
           else
-            echo "is-prerelease=false" >> "$GITHUB_OUTPUT"
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "🆕 Tag ${{ steps.version.outputs.tag }} will be created."
           fi
-
-          echo "version=$TAG" >> "$GITHUB_OUTPUT"
-          echo "✅ Version: $TAG"
-
-      - name: Verify tag is on main
-        run: |
-          git fetch origin main
-          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
-            echo "::error::Tagged commit ($GITHUB_SHA) is not reachable from main. Tags must point to commits on the main branch."
-            exit 1
-          fi
-          echo "✅ Tag is on main"
-
-      - name: Verify tag matches csproj version
-        run: |
-          CSPROJ_VERSION=$(grep -oP '(?<=<Version>)[^<]+' src/Squad.SDK.NET/Squad.SDK.NET.csproj)
-          TAG_VERSION="${GITHUB_REF#refs/tags/v}"
-
-          if [ "$TAG_VERSION" != "$CSPROJ_VERSION" ]; then
-            echo "::error::Tag version ($TAG_VERSION) does not match csproj version ($CSPROJ_VERSION). Update <Version> in Squad.SDK.NET.csproj first."
-            exit 1
-          fi
-          echo "✅ Tag matches csproj ($CSPROJ_VERSION)"
 
   release:
     name: Build, pack, and release
     needs: validate
+    if: needs.validate.outputs.tag-exists == 'false'
     runs-on: ubuntu-latest
     environment: release
     permissions:
@@ -102,7 +109,9 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
-          prerelease: ${{ needs.validate.outputs.is-prerelease == 'true' }}
+          tag_name: ${{ needs.validate.outputs.tag }}
+          name: ${{ needs.validate.outputs.tag }}
+          latest: true
           files: |
             ./artifacts/*.nupkg
             ./artifacts/*.snupkg
@@ -121,3 +130,11 @@ jobs:
             --api-key "${{ secrets.GITHUB_TOKEN }}" \
             --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
             --skip-duplicate
+
+      # Tag is created AFTER successful publish to ensure tag only exists if release succeeded
+      - name: Create git tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ needs.validate.outputs.tag }}" -m "Release ${{ needs.validate.outputs.tag }}"
+          git push origin "${{ needs.validate.outputs.tag }}"

@@ -1,0 +1,61 @@
+name: Preview Validation
+
+on:
+  push:
+    branches: [preview]
+
+concurrency:
+  group: preview-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Read release candidate version
+        id: version
+        run: |
+          VERSION=$(dotnet msbuild src/Squad.SDK.NET/Squad.SDK.NET.csproj -getProperty:Version -nologo | tr -d '\r\n')
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Preview must carry a stable SemVer version. Found '$VERSION'."
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "✅ Preview version: $VERSION"
+
+      - name: Validate changelog entry
+        run: |
+          if ! grep -q "## \[${{ steps.version.outputs.version }}\]" CHANGELOG.md 2>/dev/null; then
+            echo "::error::Version ${{ steps.version.outputs.version }} not found in CHANGELOG.md."
+            exit 1
+          fi
+          echo "✅ CHANGELOG entry found"
+
+      - name: Ensure no pending changesets remain
+        shell: pwsh
+        run: |
+          & ./scripts/Changesets.ps1 -Operation status -RequireNoPending
+
+      - name: Restore
+        run: dotnet restore Squad.SDK.NET.slnx
+
+      - name: Build
+        run: dotnet build Squad.SDK.NET.slnx --no-restore -c Release
+
+      - name: Test
+        run: dotnet test Squad.SDK.NET.slnx --no-build -c Release --verbosity normal
+
+      - name: Pack
+        run: dotnet pack src/Squad.SDK.NET/Squad.SDK.NET.csproj --no-build -c Release -o ./artifacts

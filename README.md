@@ -22,6 +22,7 @@ dotnet test Squad.SDK.NET.slnx
 
 ```
 squad-sdk-net/
+├── .changeset/                # Pending release notes and version bump metadata
 ├── src/
 │   └── Squad.SDK.NET/          # Core SDK library (v0.1.0)
 │       ├── Abstractions/       # Interfaces and contracts
@@ -46,7 +47,7 @@ squad-sdk-net/
 │       ├── Tools/              # Built-in tool definitions
 │       └── Utils/              # String utilities
 ├── tests/
-│   └── Squad.SDK.NET.Tests/    # Unit tests
+│   └── Squad.SDK.NET.Tests/    # Unit tests (474+ tests)
 ├── docs/
 │   └── examples.md             # Comprehensive usage examples
 ├── .editorconfig               # Code style rules
@@ -54,11 +55,12 @@ squad-sdk-net/
 │   ├── ISSUE_TEMPLATE/         # Bug report & feature request templates
 │   ├── PULL_REQUEST_TEMPLATE.md
 │   ├── workflows/
-│   │   ├── ci.yml              # CI (multi-OS matrix, coverage, pack)
+│   │   ├── ci.yml              # CI pipeline with multi-OS matrix (Ubuntu + Windows), code coverage, pack validation, and changeset gate for SDK changes
 │   │   ├── codeql.yml          # CodeQL security scanning
 │   │   ├── dependency-review.yml # Dependency vulnerability review
-│   │   ├── release.yml         # Tag-driven release + NuGet publish
-│   │   └── sync-check.yml      # Upstream sync monitoring
+│   │   ├── preview.yml         # Preview branch validation
+│   │   ├── promote.yml         # dev -> preview -> main promotion workflow
+│   │   └── release.yml         # main-triggered release + NuGet publish
 ├── CHANGELOG.md                # Release notes
 ├── CODEOWNERS                  # Required reviewers
 ├── CONTRIBUTING.md             # Contribution guide
@@ -72,7 +74,7 @@ squad-sdk-net/
 
 ## Documentation
 
-- **[Usage Examples](docs/examples.md)** — 17-section cookbook with copy-paste-ready C# examples covering the Builder API, routing, events, hooks, cost tracking, sessions, skills, security scanning, casting, import/export, and more.
+- **[Usage Examples](docs/examples.md)** — 16-section cookbook with copy-paste-ready C# examples covering the Builder API, routing, events, hooks, cost tracking, sessions, skills, casting, import/export, and more.
 - **API Documentation** — All public types, methods, and properties include comprehensive XML doc comments for IntelliSense and generated API reference.
 - **[Package README](src/Squad.SDK.NET/README.md)** — Detailed feature overview, architecture diagram, and quick start guide.
 - **[Changelog](CHANGELOG.md)** — Release notes following [Keep a Changelog](https://keepachangelog.com/) format.
@@ -83,16 +85,17 @@ squad-sdk-net/
 - **Deterministic builds** with `ContinuousIntegrationBuild` in CI
 - **Symbol packages** (`.snupkg`) for source-level debugging
 - **TreatWarningsAsErrors** — zero tolerance for compiler warnings
-- **CI matrix** — builds and tests on both Ubuntu and Windows
-- **Tag-driven releases** — push a `v*` tag to create a GitHub Release with NuGet packages
+- **CI matrix** — builds and tests on both Ubuntu and Windows for `dev` work and release candidates
+- **Changeset-driven release prep** — PRs targeting `dev` carry `.changeset` entries that drive version bumps and release notes
+- **Promotion flow** — `dev` accumulates changesets, `preview` applies them into the SDK version + changelog, and `main` creates the tag/release automatically
 - **Build provenance** — attestation via `actions/attest-build-provenance` for supply-chain security
 
 See [VERSIONING.md](VERSIONING.md) for the versioning scheme and release process.
 
 ## Security
 
-- **CodeQL** scans on every PR and weekly for C# vulnerabilities
-- **Dependency review** flags high-severity CVEs and restrictive licenses on PRs
+- **CodeQL** scans PRs targeting `dev`, `preview`, and `main`, plus a weekly scheduled run
+- **Dependency review** flags high-severity CVEs and restrictive licenses on PRs across the promotion flow
 - **CODEOWNERS** requires review from [@snickler](https://github.com/snickler)
 
 Report vulnerabilities privately — see [SECURITY.md](SECURITY.md).

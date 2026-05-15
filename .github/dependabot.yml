@@ -4,6 +4,7 @@ updates:
   # NuGet dependencies
   - package-ecosystem: nuget
     directory: /
+    target-branch: dev
     schedule:
       interval: weekly
       day: monday
@@ -17,6 +18,7 @@ updates:
   # GitHub Actions
   - package-ecosystem: github-actions
     directory: /
+    target-branch: dev
     schedule:
       interval: weekly
       day: monday

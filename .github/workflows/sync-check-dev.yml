@@ -1,0 +1,21 @@
+name: "Sync Check: dev"
+
+on:
+  schedule:
+    - cron: '0 8 * * 1-5'   # Weekdays at 08:00 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: sync-check-dev
+  cancel-in-progress: true
+
+jobs:
+  sync-dev:
+    uses: ./.github/workflows/sync-check.yml
+    with:
+      upstream-repo: 'bradygaster/squad'
+      upstream-branch: 'dev'
+      sync-label: 'sync:dev'
+    permissions:
+      issues: write
+      contents: read
