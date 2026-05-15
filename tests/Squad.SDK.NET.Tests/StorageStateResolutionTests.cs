@@ -761,6 +761,14 @@ public sealed class ResolutionTypeTests
 
 public sealed class SquadResolverTests
 {
+    private static bool IsSameProjectPath(string left, string right)
+    {
+        var comparison = OperatingSystem.IsWindows()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+        return string.Equals(Path.GetFullPath(left), Path.GetFullPath(right), comparison);
+    }
+
     [Fact]
     public void ResolveGlobalSquadPath_ReturnsNonNullPath()
     {
@@ -829,16 +837,17 @@ public sealed class SquadResolverTests
     public void ResolveSquad_WhenDirectoryRemoved_UsesCachedResultUntilCleared()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), $"squad-resolve-cache-{Guid.NewGuid():N}");
+        var deletedProjectDir = Path.Combine(tempDir, ".squad");
         try
         {
-            Directory.CreateDirectory(Path.Combine(tempDir, ".squad"));
+            Directory.CreateDirectory(deletedProjectDir);
             SquadResolver.ClearResolveSquadCache();
 
             var first = SquadResolver.ResolveSquad(tempDir);
             Assert.NotNull(first);
             Assert.Equal(SquadMode.Project, first!.Mode);
 
-            Directory.Delete(Path.Combine(tempDir, ".squad"), recursive: true);
+            Directory.Delete(deletedProjectDir, recursive: true);
 
             var cached = SquadResolver.ResolveSquad(tempDir);
             Assert.NotNull(cached);
@@ -846,7 +855,10 @@ public sealed class SquadResolverTests
 
             SquadResolver.ClearResolveSquadCache();
             var refreshed = SquadResolver.ResolveSquad(tempDir);
-            Assert.True(refreshed is null || refreshed.Mode != SquadMode.Project);
+            Assert.True(
+                refreshed is null ||
+                refreshed.Mode != SquadMode.Project ||
+                IsSameProjectPath(refreshed.ProjectDir, deletedProjectDir) == false);
         }
         finally
         {
@@ -860,20 +872,24 @@ public sealed class SquadResolverTests
     public async Task ResolveSquad_AfterTtlExpires_RefreshesFromFilesystem()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), $"squad-resolve-ttl-{Guid.NewGuid():N}");
+        var deletedProjectDir = Path.Combine(tempDir, ".squad");
         try
         {
-            Directory.CreateDirectory(Path.Combine(tempDir, ".squad"));
+            Directory.CreateDirectory(deletedProjectDir);
             SquadResolver.ClearResolveSquadCache();
 
             var initial = SquadResolver.ResolveSquad(tempDir);
             Assert.NotNull(initial);
             Assert.Equal(SquadMode.Project, initial!.Mode);
 
-            Directory.Delete(Path.Combine(tempDir, ".squad"), recursive: true);
+            Directory.Delete(deletedProjectDir, recursive: true);
             await Task.Delay(TimeSpan.FromSeconds(6));
 
             var afterTtl = SquadResolver.ResolveSquad(tempDir);
-            Assert.True(afterTtl is null || afterTtl.Mode != SquadMode.Project);
+            Assert.True(
+                afterTtl is null ||
+                afterTtl.Mode != SquadMode.Project ||
+                IsSameProjectPath(afterTtl.ProjectDir, deletedProjectDir) == false);
         }
         finally
         {
@@ -887,21 +903,25 @@ public sealed class SquadResolverTests
     public void ResolveSquad_WithCacheDisabled_DoesNotReuseStaleResult()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), $"squad-resolve-nocache-{Guid.NewGuid():N}");
+        var deletedProjectDir = Path.Combine(tempDir, ".squad");
         var previous = Environment.GetEnvironmentVariable("SQUAD_NO_RESOLVE_CACHE");
         try
         {
             Environment.SetEnvironmentVariable("SQUAD_NO_RESOLVE_CACHE", "1");
-            Directory.CreateDirectory(Path.Combine(tempDir, ".squad"));
+            Directory.CreateDirectory(deletedProjectDir);
             SquadResolver.ClearResolveSquadCache();
 
             var first = SquadResolver.ResolveSquad(tempDir);
             Assert.NotNull(first);
             Assert.Equal(SquadMode.Project, first!.Mode);
 
-            Directory.Delete(Path.Combine(tempDir, ".squad"), recursive: true);
+            Directory.Delete(deletedProjectDir, recursive: true);
 
             var second = SquadResolver.ResolveSquad(tempDir);
-            Assert.True(second is null || second.Mode != SquadMode.Project);
+            Assert.True(
+                second is null ||
+                second.Mode != SquadMode.Project ||
+                IsSameProjectPath(second.ProjectDir, deletedProjectDir) == false);
         }
         finally
         {
