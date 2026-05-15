@@ -45,7 +45,8 @@ jobs:
 
       - name: Ensure no pending changesets remain
         shell: pwsh
-        run: & ./scripts/Changesets.ps1 -Operation status -RequireNoPending
+        run: |
+          & ./scripts/Changesets.ps1 -Operation status -RequireNoPending
 
       - name: Restore
         run: dotnet restore Squad.SDK.NET.slnx

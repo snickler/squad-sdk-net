@@ -64,7 +64,8 @@ jobs:
     - name: Validate pending changesets
       if: github.event_name == 'push'
       shell: pwsh
-      run: & ./scripts/Changesets.ps1 -Operation status
+      run: |
+        & ./scripts/Changesets.ps1 -Operation status
 
     - name: Restore
       run: dotnet restore Squad.SDK.NET.slnx

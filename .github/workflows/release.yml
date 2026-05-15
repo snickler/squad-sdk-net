@@ -53,7 +53,8 @@ jobs:
 
       - name: Ensure no pending changesets remain
         shell: pwsh
-        run: & ./scripts/Changesets.ps1 -Operation status -RequireNoPending
+        run: |
+          & ./scripts/Changesets.ps1 -Operation status -RequireNoPending
 
       - name: Check whether the release tag already exists
         id: tag
