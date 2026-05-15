@@ -1,0 +1,21 @@
+name: "Sync Check: preview"
+
+on:
+  schedule:
+    - cron: '0 8 * * 1-5'   # Weekdays at 08:00 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: sync-check-preview
+  cancel-in-progress: true
+
+jobs:
+  sync-preview:
+    uses: ./.github/workflows/sync-check.yml
+    with:
+      upstream-repo: 'bradygaster/squad'
+      upstream-branch: 'preview'
+      sync-label: 'sync:preview'
+    permissions:
+      issues: write
+      contents: read

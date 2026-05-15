@@ -37,32 +37,28 @@ dotnet test
 3. **Make your changes** — follow the code style guidelines below
 4. **Add or update tests** for any new functionality
 5. **Ensure all tests pass** (`dotnet test`)
-6. **Create a PR as a draft** — `gh pr create --draft --base dev --repo snickler/squad-sdk-net --head <your-username>:your-branch`
-7. **Work on your changes** until CI passes and you're satisfied
-8. **Mark as "Ready for review"** — this is the handoff signal to the core team (see below)
+6. **Add a `.changeset` entry** when you change releaseable SDK behavior under `src/Squad.SDK.NET/`
+7. **Create a draft PR** against `dev`
+8. **Mark the PR ready for review** after CI passes and you're satisfied with the result
 
 ### Handoff: Contributor → Core Team
 
-External contributors don't have write access, so the review-to-merge flow has a handoff point. Here's exactly what happens:
+External contributors do not have write access, so the review-to-merge flow has a handoff point.
 
-**Your side (contributor):**
+**Contributor side**
 
-1. ✅ All required CI checks are green (build, test)
-2. ✅ PR is no longer a draft — mark as **"Ready for review"**
-3. ✅ Copilot reviewer bot posts its review automatically (if configured)
-4. ✅ Review Copilot's suggestions and manually apply any you agree with in your fork
-5. ✅ Push updates to your branch to address feedback
-6. ✅ If Copilot flags issues you can't resolve, note them in a PR comment
+1. All required CI checks are green
+2. The PR is no longer a draft
+3. Copilot review suggestions are addressed manually in your fork
+4. Any remaining blockers or tradeoffs are noted in the PR conversation
 
-> **Note:** Copilot review suggestions appear as comments, but the "Commit suggestion" and "Fix with Copilot" buttons require repo write access and won't work for external contributors. Review the suggestions, apply them manually in your fork, and push your changes.
+**Core team side**
 
-**Core team side (after you undraft):**
+1. Review the now-ready PR
+2. Address any remaining repository-side follow-up
+3. Merge into `dev`
 
-1. Look for CI-green, undrafted PRs from contributors
-2. Address any remaining Copilot review issues (using "Fix with Copilot" or manual fixes)
-3. Human review, resolve threads, and merge
-
-**TL;DR:** Your job is done when the PR is undrafted, CI is green, and you've responded to suggestions. The core team takes it from there.
+> **Note:** Copilot review comments may suggest changes, but the repository-side quick actions can require write access. Apply the changes in your fork and push the updates normally.
 
 ### PR Guidelines
 
@@ -86,15 +82,15 @@ External contributors don't have write access, so the review-to-merge flow has a
 
 ## Versioning
 
-This project follows [Semantic Versioning 2.0](https://semver.org/). See [VERSIONING.md](VERSIONING.md) for the full versioning policy, pre-release conventions, and the release process.
+This project follows [Semantic Versioning 2.0](https://semver.org/) with changeset-driven release prep on `dev`. See [VERSIONING.md](VERSIONING.md) for the full branching, versioning, and release policy.
 
 ### Creating a Release
 
-1. Update `<Version>` in `src/Squad.SDK.NET/Squad.SDK.NET.csproj`
-2. Update `CHANGELOG.md` with release notes
-3. Merge to `main`
-4. Tag the merge commit: `git tag v0.2.0 && git push origin v0.2.0`
-5. The [release workflow](.github/workflows/release.yml) handles the rest
+1. Merge releaseable work into `dev`, with `.changeset/*.md` entries for SDK changes
+2. Run the `promote.yml` workflow with **`dev-to-preview`**
+3. Let `preview.yml` validate the staged release candidate
+4. Run the `promote.yml` workflow with **`preview-to-main`**
+5. The [release workflow](.github/workflows/release.yml) creates the tag, GitHub Release, and NuGet publication from `main`
 
 ## Security
 
