@@ -5,6 +5,13 @@ namespace Squad.SDK.NET.Tests;
 
 #region Presets — SquadResolver SQUAD_HOME support
 
+[CollectionDefinition(Name)]
+public sealed class SquadHomeEnvironmentCollection : ICollectionFixture<object>
+{
+    public const string Name = "Squad home environment";
+}
+
+[Collection(SquadHomeEnvironmentCollection.Name)]
 public sealed class SquadResolverSquadHomeTests : IDisposable
 {
     private readonly string? _savedSquadHome;
@@ -270,6 +277,7 @@ public sealed class PresetManifestTests
 
 #region Presets — PresetLoader
 
+[Collection(SquadHomeEnvironmentCollection.Name)]
 public sealed class PresetLoaderTests : IDisposable
 {
     private readonly string _tempDir;
