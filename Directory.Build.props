@@ -18,7 +18,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Nerdbank.MessagePack" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All" />
     <!-- Pin transitive dependency to safe version: Nerdbank.MessagePack 1.0.2 has GHSA-2cwq-pwfr-wcw3 (high) -->
     <PackageReference Include="Nerdbank.MessagePack" />
