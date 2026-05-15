@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check upstream for new commits
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           UPSTREAM_REPO: ${{ inputs.upstream-repo }}
           UPSTREAM_BRANCH: ${{ inputs.upstream-branch }}
