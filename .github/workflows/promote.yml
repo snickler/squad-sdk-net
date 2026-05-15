@@ -1,0 +1,163 @@
+name: Promote
+
+on:
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: 'Promotion stage to run'
+        required: true
+        type: choice
+        options:
+          - dev-to-preview
+          - preview-to-main
+      dry_run:
+        description: 'Dry run — show what would happen without pushing'
+        required: false
+        default: 'false'
+        type: choice
+        options: ['false', 'true']
+
+concurrency:
+  group: promote-${{ inputs.stage }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  dev-to-preview:
+    if: inputs.stage == 'dev-to-preview'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch all branches
+        run: git fetch --all
+
+      - name: Show current state
+        run: |
+          echo "=== dev HEAD ==="
+          git log origin/dev -1 --oneline
+          if git show-ref --verify --quiet refs/remotes/origin/preview; then
+            echo "=== preview HEAD ==="
+            git log origin/preview -1 --oneline
+          else
+            echo "preview branch does not exist yet — it will be seeded from dev"
+          fi
+
+      - name: Merge dev into preview and apply changesets
+        shell: bash
+        run: |
+          PREVIEW_EXISTS=false
+          if git show-ref --verify --quiet refs/remotes/origin/preview; then
+            PREVIEW_EXISTS=true
+            git checkout -B preview origin/preview
+          else
+            git checkout -B preview origin/dev
+          fi
+
+          git merge origin/dev --no-commit --no-ff -X theirs
+          pwsh -NoProfile -File ./scripts/Changesets.ps1 -Operation apply
+
+          VERSION=$(dotnet msbuild src/Squad.SDK.NET/Squad.SDK.NET.csproj -getProperty:Version)
+          git add -A
+
+          if git diff --cached --quiet; then
+            if [[ "$PREVIEW_EXISTS" == "false" && "${{ inputs.dry_run }}" != "true" ]]; then
+              git push origin preview
+              echo "✅ Created preview branch from dev"
+              exit 0
+            fi
+            echo "ℹ️ preview is already up to date"
+            exit 0
+          fi
+
+          if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+            echo "🔍 Dry run — preview would be updated to version $VERSION"
+            git status --short
+            exit 0
+          fi
+
+          git commit -m "chore: promote dev → preview (v$VERSION)"
+          git push origin preview
+          echo "✅ Pushed preview branch"
+
+  preview-to-main:
+    if: inputs.stage == 'preview-to-main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch all branches
+        run: git fetch --all
+
+      - name: Validate preview is release-ready
+        shell: bash
+        run: |
+          if ! git show-ref --verify --quiet refs/remotes/origin/preview; then
+            echo "::error::preview branch does not exist."
+            exit 1
+          fi
+
+          git checkout -B preview origin/preview
+          VERSION=$(dotnet msbuild src/Squad.SDK.NET/Squad.SDK.NET.csproj -getProperty:Version)
+
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Preview must carry a stable SemVer version. Found '$VERSION'."
+            exit 1
+          fi
+
+          if ! grep -q "## \[$VERSION\]" CHANGELOG.md 2>/dev/null; then
+            echo "::error::Version $VERSION not found in CHANGELOG.md."
+            exit 1
+          fi
+
+          pwsh -NoProfile -File ./scripts/Changesets.ps1 -Operation status -RequireNoPending
+          echo "version=$VERSION" >> "$GITHUB_ENV"
+          echo "✅ Preview is release-ready"
+
+      - name: Merge preview into main and sync main back to dev
+        shell: bash
+        run: |
+          git checkout -B main origin/main
+          git merge origin/preview --no-ff -m "chore: promote preview → main (v$VERSION)"
+
+          if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+            echo "🔍 Dry run — preview would be merged into main at v$VERSION"
+            git status --short
+            exit 0
+          fi
+
+          git push origin main
+          echo "✅ Pushed main — release workflow will tag and publish v$VERSION"
+
+          git checkout -B dev origin/dev
+          git merge origin/main --no-ff -m "chore: sync main → dev after release (v$VERSION)"
+          git push origin dev
+          echo "✅ Synced main back into dev"

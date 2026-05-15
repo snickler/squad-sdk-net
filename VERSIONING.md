@@ -1,100 +1,103 @@
 # Versioning
 
-Squad.SDK.NET follows [Semantic Versioning 2.0](https://semver.org/spec/v2.0.0.html).
+Squad.SDK.NET follows [Semantic Versioning 2.0](https://semver.org/spec/v2.0.0.html) with a branch model aligned to upstream:
 
-## Version Format
-
+```text
+dev -> preview -> main
 ```
-MAJOR.MINOR.PATCH[-PRERELEASE]
-```
-
-| Component    | When to Bump                                             |
-|-------------|----------------------------------------------------------|
-| **MAJOR**   | Breaking changes to public API                           |
-| **MINOR**   | New features, backwards-compatible                       |
-| **PATCH**   | Bug fixes, backwards-compatible                          |
-| **PRERELEASE** | Preview or release-candidate builds (e.g., `preview.1`, `rc.1`) |
-
-### Examples
-
-| Version             | Meaning                                |
-|---------------------|----------------------------------------|
-| `0.1.0`             | First stable preview release           |
-| `0.2.0-preview.1`   | Preview of next minor release          |
-| `0.2.0-rc.1`        | Release candidate                      |
-| `0.2.0`             | Stable minor release                   |
-| `1.0.0`             | First production-ready release         |
 
 ## Version Source of Truth
 
-The canonical version lives in `src/Squad.SDK.NET/Squad.SDK.NET.csproj`:
+The canonical SDK version lives in `src/Squad.SDK.NET/Squad.SDK.NET.csproj`:
 
 ```xml
 <Version>0.1.0</Version>
 ```
 
-All release tooling validates that the git tag matches this value.
+Release automation reads the effective version from MSBuild, not from a manually pushed tag.
 
-## Release Process
+## Branch Roles
 
-### 1. Prepare the release
+| Branch | Role | Version state |
+|--------|------|---------------|
+| `dev` | Integration branch for feature work | Holds the current stable SDK version plus pending `.changeset` entries |
+| `preview` | Release-candidate branch | Holds the next stable release version with changesets already applied |
+| `main` | Released branch | Matches the promoted preview candidate and triggers the stable release |
 
-```bash
-# Update version in csproj
-# Update CHANGELOG.md with release notes
-# Commit and merge to main
+## Changesets
+
+Release-worthy SDK changes are tracked in `.changeset/*.md` files on `dev`.
+
+Example:
+
+```md
+---
+"Squad.SDK.NET": minor
+---
+
+Add preview validation for release candidates.
 ```
 
-### 2. Tag and push
+Supported bump types:
 
-```bash
-git tag v0.1.0
-git push origin v0.1.0
-```
+| Type | Meaning |
+|------|---------|
+| `patch` | Backwards-compatible fixes |
+| `minor` | Backwards-compatible features |
+| `major` | Breaking public API changes |
 
-### 3. Automated release
+For this repo's single-package .NET layout, changesets are applied during `dev -> preview` promotion:
 
-Pushing a `v*` tag triggers the [release workflow](.github/workflows/release.yml), which:
+1. The highest pending bump is selected (`major > minor > patch`)
+2. `<Version>` in the SDK csproj is bumped
+3. `CHANGELOG.md` gets a new release entry
+4. Applied changeset files are removed from the promoted branch
 
-1. **Validates** the tag format matches SemVer
-2. **Verifies** the tagged commit is on `main`
-3. **Confirms** the tag version matches the csproj `<Version>`
-4. **Builds and tests** the project
-5. **Packs** the NuGet package (`.nupkg` + `.snupkg`)
-6. **Attests** build provenance for supply-chain security
-7. **Creates** a GitHub Release with auto-generated notes
-8. **Publishes** to NuGet.org (requires `NUGET_API_KEY` secret in the `release` environment)
-9. **Publishes** to GitHub Packages (using `GITHUB_TOKEN`, no extra configuration needed)
+## Automated Release Flow
 
-### 4. Pre-release tags
+### 1. Work lands on `dev`
 
-Tags containing a hyphen (e.g., `v0.2.0-preview.1`) are automatically marked as pre-release on both GitHub and NuGet.
+- PRs target `dev`
+- Releaseable SDK changes must include a `.changeset` entry
+- CI validates the SDK and the pending changeset set
 
-## Pre-release Packages on GitHub Packages
+### 2. Promote `dev -> preview`
 
-Three pre-release package channels are published automatically to [GitHub Packages](https://github.com/snickler/squad-sdk-net/packages):
+Run `.github/workflows/promote.yml` with the `dev-to-preview` stage. The workflow:
 
-| Channel | Trigger | Version format | Example |
-|---------|---------|----------------|---------|
-| **CI** | Every PR build | `{version}-ci.{run_number}` | `0.1.0-ci.42` |
-| **Dev** | Push / merge to `dev` | `{version}-dev` | `0.1.0-dev` |
-| **Release** | Push a `v*` tag | `{version}` | `0.1.0` |
+1. Merges `dev` into `preview`
+2. Applies pending changesets to the SDK version + changelog
+3. Pushes the release candidate to `preview`
 
-To consume any of these packages, add the GitHub Packages NuGet source to your project:
+### 3. Validate `preview`
 
-```bash
-dotnet nuget add source \
-  "https://nuget.pkg.github.com/snickler/index.json" \
-  --name "GitHub snickler" \
-  --username <your-github-username> \
-  --password <your-github-pat>
-```
+Pushing to `preview` triggers `.github/workflows/preview.yml`, which:
 
-Then install the latest pre-release build:
+1. Verifies the preview version is a stable SemVer (`MAJOR.MINOR.PATCH`)
+2. Verifies the changelog contains that version
+3. Ensures no pending changesets remain
+4. Builds, tests, and packs the SDK
 
-```bash
-dotnet add package Squad.SDK.NET --prerelease
-```
+### 4. Promote `preview -> main`
+
+Run `.github/workflows/promote.yml` with the `preview-to-main` stage. The workflow:
+
+1. Verifies `preview` is release-ready
+2. Merges `preview` into `main`
+3. Syncs the release commit back into `dev`
+
+### 5. Release from `main`
+
+Pushing to `main` triggers `.github/workflows/release.yml`, which:
+
+1. Reads the version from MSBuild
+2. Verifies the changelog contains that version
+3. Ensures there are no pending changesets
+4. Skips cleanly if `v<Version>` already exists
+5. Builds, tests, and packs the SDK
+6. Tags the commit as `v<Version>`
+7. Creates the GitHub Release
+8. Publishes to NuGet.org when `NUGET_PUBLISH_ENABLED == 'true'`
 
 ## Protected Release Environment
 

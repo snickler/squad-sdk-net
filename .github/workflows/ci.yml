@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, dev]
+    branches: [dev]
   pull_request:
-    branches: [main, dev]
+    branches: [dev, preview, main]
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -14,7 +14,40 @@ permissions:
   contents: read
 
 jobs:
+  changesets:
+    if: github.event_name == 'pull_request' && github.base_ref == 'dev'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Require changeset for SDK changes
+        shell: pwsh
+        run: |
+          $baseSha = '${{ github.event.pull_request.base.sha }}'
+          $headSha = '${{ github.event.pull_request.head.sha }}'
+          $changedFiles = @(git diff --name-only "$baseSha...$headSha")
+          $sdkChanges = @($changedFiles | Where-Object { $_ -like 'src/Squad.SDK.NET/*' })
+
+          if ($sdkChanges.Count -eq 0) {
+              Write-Host 'No SDK source changes detected — changeset not required.'
+              exit 0
+          }
+
+          $changesetFiles = @($changedFiles | Where-Object {
+                  $_ -like '.changeset/*.md' -and $_ -ne '.changeset/README.md'
+              })
+
+          if ($changesetFiles.Count -eq 0) {
+              throw 'Changes to src/Squad.SDK.NET require a .changeset entry.'
+          }
+
+          & ./scripts/Changesets.ps1 -Operation status
+
   build:
+    needs: [changesets]
+    if: always() && !cancelled() && (needs.changesets.result == 'success' || needs.changesets.result == 'skipped')
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -28,6 +61,11 @@ jobs:
       with:
         dotnet-version: '10.0.x'
 
+    - name: Validate pending changesets
+      if: github.event_name == 'push'
+      shell: pwsh
+      run: & ./scripts/Changesets.ps1 -Operation status
+
     - name: Restore
       run: dotnet restore Squad.SDK.NET.slnx
 
@@ -37,39 +75,19 @@ jobs:
     - name: Test
       run: dotnet test Squad.SDK.NET.slnx --no-build -c Release --verbosity normal --collect:"XPlat Code Coverage"
 
-    - name: "Gate: Prerelease Version Guard"
-      if: >-
-        matrix.os == 'ubuntu-latest'
-        && github.event_name == 'pull_request'
-        && github.event.pull_request.base.ref != 'insider'
+    - name: Guard stable SDK version
+      if: matrix.os == 'ubuntu-latest' && github.event_name == 'pull_request'
       shell: pwsh
       run: |
-        "## 🏷️ Prerelease Version Guard" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
-
-        $csprojPath = "src/Squad.SDK.NET/Squad.SDK.NET.csproj"
-        [xml]$csproj = Get-Content -Raw $csprojPath
-        $version = @($csproj.Project.PropertyGroup | ForEach-Object { $_.Version }) |
-          Where-Object { $_ -and -not [string]::IsNullOrWhiteSpace($_) } |
-          Select-Object -First 1
+        $version = dotnet msbuild src/Squad.SDK.NET/Squad.SDK.NET.csproj -getProperty:Version --verbosity quiet
 
         if ([string]::IsNullOrWhiteSpace($version)) {
-          Write-Error "PACKAGE VERSION COULD NOT BE DETERMINED — no non-empty <Version> element was found in $csprojPath."
-          Write-Error ""
-          Write-Error "Ensure $csprojPath contains a non-empty <Version>...</Version> value in a PropertyGroup."
-          exit 1
+            throw 'The SDK project does not evaluate a Version property.'
         }
 
         if ($version -match '-') {
-          Write-Error "PRERELEASE VERSION DETECTED — package version '$version' has a prerelease suffix and cannot merge to dev/main."
-          Write-Error ""
-          Write-Error "  $csprojPath has <Version>$version</Version>"
-          Write-Error ""
-          Write-Error "Prerelease suffixes (-alpha, -beta, -rc, -preview) must be removed before merging."
-          Write-Error "To fix: update <Version> in $csprojPath to a release version (e.g., remove the hyphen and suffix)."
-          exit 1
+            throw "The SDK version '$version' includes a prerelease suffix. Preview releases are created through promotion, so pull requests must keep the csproj on a stable SemVer value."
         }
-
-        Write-Host "✅ Package version is a release version (no prerelease suffix): $version"
 
     - name: Pack
       run: dotnet pack src/Squad.SDK.NET/Squad.SDK.NET.csproj --no-build -c Release -o ./artifacts
@@ -109,11 +127,13 @@ jobs:
 
     - name: Set CI version
       id: ci-version
+      shell: bash
       run: |
         BASE=$(dotnet msbuild src/Squad.SDK.NET/Squad.SDK.NET.csproj -getProperty:Version --verbosity quiet)
         echo "version=${BASE}-ci.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
 
     - name: Pack
+      shell: bash
       run: |
         dotnet pack src/Squad.SDK.NET/Squad.SDK.NET.csproj \
           --no-restore \
@@ -122,6 +142,7 @@ jobs:
           -p:Version=${{ steps.ci-version.outputs.version }}
 
     - name: Publish to GitHub Packages
+      shell: bash
       run: |
         dotnet nuget push ./artifacts/*.nupkg \
           --api-key "${{ secrets.GITHUB_TOKEN }}" \
@@ -148,11 +169,13 @@ jobs:
 
     - name: Set dev version
       id: dev-version
+      shell: bash
       run: |
         BASE=$(dotnet msbuild src/Squad.SDK.NET/Squad.SDK.NET.csproj -getProperty:Version --verbosity quiet)
         echo "version=${BASE}-dev" >> "$GITHUB_OUTPUT"
 
     - name: Pack
+      shell: bash
       run: |
         dotnet pack src/Squad.SDK.NET/Squad.SDK.NET.csproj \
           --no-restore \
@@ -161,6 +184,7 @@ jobs:
           -p:Version=${{ steps.dev-version.outputs.version }}
 
     - name: Publish to GitHub Packages
+      shell: bash
       run: |
         dotnet nuget push ./artifacts/*.nupkg \
           --api-key "${{ secrets.GITHUB_TOKEN }}" \

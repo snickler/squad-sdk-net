@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Parse roster and sync labels
-        uses: actions/github-script@v9
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs');
@@ -103,6 +103,12 @@ jobs:
               { name: 'priority:p2', color: 'FBCA04', description: 'Next sprint' }
             ];
 
+            const SYNC_LABELS = [
+              { name: 'sync', color: 'F9D0C4', description: 'Upstream sync tracking' },
+              { name: 'sync:dev', color: 'FEF2C0', description: 'Changes on upstream dev branch' },
+              { name: 'sync:preview', color: 'C2E0C6', description: 'Changes on upstream preview branch' }
+            ];
+
             function slugify(t) { return t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
 
             // Ensure the base "squad" triage label exists
@@ -133,6 +139,7 @@ jobs:
             labels.push(...TYPE_LABELS);
             labels.push(...PRIORITY_LABELS);
             labels.push(...SIGNAL_LABELS);
+            labels.push(...SYNC_LABELS);
 
             // Sync labels (create or update)
             for (const label of labels) {
