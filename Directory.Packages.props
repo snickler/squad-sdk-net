@@ -4,7 +4,7 @@
     <PackageVersion Include="Nerdbank.MessagePack" Version="1.1.62" />
     <PackageVersion Include="Microsoft.Extensions.AI.Abstractions" Version="10.5.2" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.7" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.7" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.8" />
     <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.7" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.7" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.5" />
