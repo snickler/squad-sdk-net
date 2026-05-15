@@ -1,3 +1,5 @@
+using Squad.SDK.NET.Runtime;
+
 namespace Squad.SDK.NET.Agents;
 
 /// <summary>Compiles Markdown charter files into <see cref="AgentCharter"/> instances.</summary>
@@ -9,7 +11,7 @@ public static class CharterCompiler
     /// <returns>The compiled <see cref="AgentCharter"/>.</returns>
     public static async Task<AgentCharter> CompileAsync(string charterPath, CancellationToken cancellationToken = default)
     {
-        var content = await File.ReadAllTextAsync(charterPath, cancellationToken);
+        var content = await File.ReadAllTextAsync(charterPath, cancellationToken).ConfigureAwait(false);
         return Parse(content);
     }
 
@@ -20,14 +22,11 @@ public static class CharterCompiler
     public static async Task<IReadOnlyList<AgentCharter>> CompileAllAsync(string teamRoot, CancellationToken cancellationToken = default)
     {
         var charterFiles = Directory.GetFiles(teamRoot, "charter.md", SearchOption.AllDirectories);
-        var results = new List<AgentCharter>(charterFiles.Length);
-
-        foreach (var file in charterFiles)
-        {
-            results.Add(await CompileAsync(file, cancellationToken));
-        }
-
-        return results;
+        return await ParallelHelpers.MapWithLimitAsync(
+            charterFiles,
+            5,
+            static (file, _, ct) => CompileAsync(file, ct),
+            cancellationToken).ConfigureAwait(false);
     }
 
     private static AgentCharter Parse(string content)

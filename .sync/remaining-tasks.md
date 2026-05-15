@@ -4,6 +4,15 @@
 
 The initial sync ported resolution caching, parallel utilities, and updated the sync state. The following tasks remain to complete the sync of upstream commits 12adffe → 754de09.
 
+## Execution Status (2026-05-15)
+
+- [x] Task 1: Apply parallel charter discovery
+- [x] Task 2: Evaluate async scheduler improvements (no .NET scheduler equivalent exists in `src/Squad.SDK.NET/Runtime`)
+- [x] Task 3: Add tests for resolution caching
+- [x] Task 4: Add tests for parallel utilities
+- [x] Task 5: Update documentation for current branch model
+- [x] Task 6: Resolve Nerdbank.MessagePack vulnerability (NU1903)
+
 ---
 
 ## Task 1: Apply Parallel Charter Discovery

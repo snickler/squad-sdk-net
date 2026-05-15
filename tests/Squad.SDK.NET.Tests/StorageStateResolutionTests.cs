@@ -826,6 +826,120 @@ public sealed class SquadResolverTests
     }
 
     [Fact]
+    public void ResolveSquad_WhenDirectoryRemoved_UsesCachedResultUntilCleared()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), $"squad-resolve-cache-{Guid.NewGuid():N}");
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(tempDir, ".squad"));
+            SquadResolver.ClearResolveSquadCache();
+
+            var first = SquadResolver.ResolveSquad(tempDir);
+            Assert.NotNull(first);
+            Assert.Equal(SquadMode.Project, first!.Mode);
+
+            Directory.Delete(Path.Combine(tempDir, ".squad"), recursive: true);
+
+            var cached = SquadResolver.ResolveSquad(tempDir);
+            Assert.NotNull(cached);
+            Assert.Equal(SquadMode.Project, cached!.Mode);
+
+            SquadResolver.ClearResolveSquadCache();
+            var refreshed = SquadResolver.ResolveSquad(tempDir);
+            Assert.True(refreshed is null || refreshed.Mode != SquadMode.Project);
+        }
+        finally
+        {
+            SquadResolver.ClearResolveSquadCache();
+            if (Directory.Exists(tempDir))
+                Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task ResolveSquad_AfterTtlExpires_RefreshesFromFilesystem()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), $"squad-resolve-ttl-{Guid.NewGuid():N}");
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(tempDir, ".squad"));
+            SquadResolver.ClearResolveSquadCache();
+
+            var initial = SquadResolver.ResolveSquad(tempDir);
+            Assert.NotNull(initial);
+            Assert.Equal(SquadMode.Project, initial!.Mode);
+
+            Directory.Delete(Path.Combine(tempDir, ".squad"), recursive: true);
+            await Task.Delay(TimeSpan.FromSeconds(6));
+
+            var afterTtl = SquadResolver.ResolveSquad(tempDir);
+            Assert.True(afterTtl is null || afterTtl.Mode != SquadMode.Project);
+        }
+        finally
+        {
+            SquadResolver.ClearResolveSquadCache();
+            if (Directory.Exists(tempDir))
+                Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ResolveSquad_WithCacheDisabled_DoesNotReuseStaleResult()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), $"squad-resolve-nocache-{Guid.NewGuid():N}");
+        var previous = Environment.GetEnvironmentVariable("SQUAD_NO_RESOLVE_CACHE");
+        try
+        {
+            Environment.SetEnvironmentVariable("SQUAD_NO_RESOLVE_CACHE", "1");
+            Directory.CreateDirectory(Path.Combine(tempDir, ".squad"));
+            SquadResolver.ClearResolveSquadCache();
+
+            var first = SquadResolver.ResolveSquad(tempDir);
+            Assert.NotNull(first);
+            Assert.Equal(SquadMode.Project, first!.Mode);
+
+            Directory.Delete(Path.Combine(tempDir, ".squad"), recursive: true);
+
+            var second = SquadResolver.ResolveSquad(tempDir);
+            Assert.True(second is null || second.Mode != SquadMode.Project);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("SQUAD_NO_RESOLVE_CACHE", previous);
+            SquadResolver.ClearResolveSquadCache();
+            if (Directory.Exists(tempDir))
+                Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task ResolveSquad_ConcurrentCalls_RemainConsistent()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), $"squad-resolve-concurrent-{Guid.NewGuid():N}");
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(tempDir, ".squad"));
+            SquadResolver.ClearResolveSquadCache();
+
+            var tasks = Enumerable.Range(0, 64)
+                .Select(_ => Task.Run(() => SquadResolver.ResolveSquad(tempDir)));
+            var results = await Task.WhenAll(tasks);
+
+            Assert.All(results, result =>
+            {
+                Assert.NotNull(result);
+                Assert.Equal(SquadMode.Project, result!.Mode);
+            });
+        }
+        finally
+        {
+            SquadResolver.ClearResolveSquadCache();
+            if (Directory.Exists(tempDir))
+                Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
     public void IsInsideWorktree_RegularDir_ReturnsFalse()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), $"squad-wt-{Guid.NewGuid():N}");

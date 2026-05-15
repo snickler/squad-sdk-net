@@ -1,6 +1,6 @@
 ---
 name: "git-workflow"
-description: "Squad branching model: dev-first workflow with insiders preview channel"
+description: "Squad branching model: main + dev with prerelease tags from dev"
 domain: "version-control"
 confidence: "high"
 source: "team-decision"
@@ -8,13 +8,12 @@ source: "team-decision"
 
 ## Context
 
-Squad uses a three-branch model. **All feature work starts from `dev`, not `main`.**
+Squad uses a two-branch model. **All feature work starts from `dev`, not `main`.**
 
 | Branch | Purpose | Publishes |
 |--------|---------|-----------|
 | `main` | Released, tagged, in-npm code only | `npm publish` on tag |
-| `dev` | Integration branch — all feature work lands here | `npm publish --tag preview` on merge |
-| `insiders` | Early-access channel — synced from dev | `npm publish --tag insiders` on sync |
+| `dev` | Integration branch — all feature work lands here | `npm publish --tag preview` and `npm publish --tag insider` from dev |
 
 ## Branch Naming Convention
 
@@ -199,6 +198,6 @@ These compose naturally. You can have:
 
 ## Promotion Pipeline
 
-- dev → insiders: Automated sync on green build
+- dev → preview/insider tags: Automated publish on green build
 - dev → main: Manual merge when ready for stable release, then tag
 - Hotfixes: Branch from main as `hotfix/{slug}`, PR to dev, cherry-pick to main if urgent
