@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Collections.Concurrent;
 
 namespace Squad.SDK.NET.Resolution;
 
@@ -12,13 +13,99 @@ public static class SquadResolver
     /// <summary>Name of the squad configuration file.</summary>
     public const string ConfigFileName = "squad.json";
 
+    // ============================================================================
+    // Resolution cache (perf: memoize repeated FS walks)
+    // ============================================================================
+    //
+    // Why caching is needed:
+    //   ResolveSquad() walks from `startDir` toward the root, doing 2–3 syscalls
+    //   per directory level. It is called from many entry points and may be invoked
+    //   several times per operation — repeating the same walk each time.
+    //
+    // Why TTL + explicit invalidation:
+    //   Results CAN change during a single process: initialization creates `.squad/`,
+    //   tests scaffold and tear down temp directories, and long-running processes
+    //   may observe directory changes. A short TTL (5 seconds) makes the cache
+    //   self-correcting; ClearResolveSquadCache() provides immediate invalidation.
+    //
+    // Escape hatch:
+    //   Set `SQUAD_NO_RESOLVE_CACHE=1` to disable the cache. Tests that exhaustively
+    //   exercise the walk algorithm should set this so cached results from a previous
+    //   test do not contaminate the next.
+    //
+    // Cache key: absolute path of `startDir` (after Path.GetFullPath()).
+
+    private sealed record CacheEntry<T>(T Value, long Timestamp);
+
+    private const int ResolveCacheTtlMs = 5_000;
+    private static readonly ConcurrentDictionary<string, CacheEntry<ResolvedSquadPaths?>> _resolveCache = new(StringComparer.Ordinal);
+
+    private static bool IsResolveCacheDisabled() =>
+        Environment.GetEnvironmentVariable("SQUAD_NO_RESOLVE_CACHE") == "1";
+
+    private static T? ReadCache<T>(ConcurrentDictionary<string, CacheEntry<T>> cache, string key)
+    {
+        if (IsResolveCacheDisabled()) return default;
+        if (!cache.TryGetValue(key, out var hit)) return default;
+        if (DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - hit.Timestamp > ResolveCacheTtlMs)
+        {
+            cache.TryRemove(key, out _);
+            return default;
+        }
+        return hit.Value;
+    }
+
+    private static void WriteCache<T>(ConcurrentDictionary<string, CacheEntry<T>> cache, string key, T value)
+    {
+        if (IsResolveCacheDisabled()) return;
+        cache[key] = new CacheEntry<T>(value, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+    }
+
+    /// <summary>
+    /// Clear all in-process caches used by <see cref="ResolveSquad"/>.
+    /// </summary>
+    /// <remarks>
+    /// Call this from any command or test that creates, moves, or deletes a
+    /// <c>.squad/</c> directory so subsequent resolution calls in the same process
+    /// observe the fresh filesystem state immediately, instead of waiting up to
+    /// 5 seconds for the TTL to expire.
+    /// <para>
+    /// Examples of callers that should invoke this:
+    /// <list type="bullet">
+    ///   <item><description>Squad initialization — creates <c>.squad/</c> in the project root</description></item>
+    ///   <item><description>Squad linking — points an existing checkout at a remote team root</description></item>
+    ///   <item><description>Squad upgrade — may regenerate <c>.squad/</c> layout</description></item>
+    ///   <item><description>Test fixtures that scaffold or tear down temporary <c>.squad/</c> directories</description></item>
+    /// </list>
+    /// </para>
+    /// Safe to call when the cache is disabled (no-op).
+    /// </remarks>
+    public static void ClearResolveSquadCache()
+    {
+        _resolveCache.Clear();
+    }
+
     /// <summary>Resolves a squad by walking up the directory tree from <paramref name="startDir"/>.</summary>
     /// <param name="startDir">Directory to start searching from; defaults to the current directory.</param>
     /// <returns>The resolved paths, or <see langword="null"/> if no squad directory is found.</returns>
     public static ResolvedSquadPaths? ResolveSquad(string? startDir = null)
     {
         var searchDir = startDir ?? Directory.GetCurrentDirectory();
+        var cacheKey = Path.GetFullPath(searchDir);
 
+        // Check cache first
+        var cached = ReadCache(_resolveCache, cacheKey);
+        if (cached is not null || (IsResolveCacheDisabled() == false && _resolveCache.ContainsKey(cacheKey)))
+            return cached;
+
+        // Cache miss — perform the walk
+        var result = ResolveSquadUncached(cacheKey);
+        WriteCache(_resolveCache, cacheKey, result);
+        return result;
+    }
+
+    private static ResolvedSquadPaths? ResolveSquadUncached(string searchDir)
+    {
         // Walk up the directory tree looking for .squad/
         var current = new DirectoryInfo(searchDir);
         while (current is not null)
