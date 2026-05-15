@@ -53,52 +53,49 @@ jobs:
 
             core.info(`Upstream ${upstreamBranch} HEAD: ${latestSha}`);
 
-            // 2. Check for an existing open sync issue — avoid duplicates
-            const { data: openResults } = await github.rest.issues.listForRepo({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              labels: ['sync', syncLabel].join(','),
-              state: 'open',
-              per_page: 5,
-            });
-
-            const openIssues = openResults.filter(i => !i.pull_request);
-            if (openIssues.length > 0) {
-              core.info(`Open sync issue already exists: #${openIssues[0].number} — skipping`);
-              return;
-            }
-
-            // 3. Find the last synced SHA from the most recent closed sync issue
+            // 2. Find any prior sync issue — avoid duplicates and determine last-synced SHA.
+            //    Searching both open and closed in one call prevents re-emitting issues on
+            //    every run when no closed issue yet exists (bootstrap case) or after a label
+            //    rename migration (e.g. sync:insider → sync:preview).
             let lastSyncedSha = null;
-            const { data: closedResults } = await github.rest.issues.listForRepo({
+            let openIssueFound = false;
+
+            const { data: allIssueResults } = await github.rest.issues.listForRepo({
               owner: context.repo.owner,
               repo: context.repo.repo,
               labels: ['sync', syncLabel].join(','),
-              state: 'closed',
+              state: 'all',
               sort: 'created',
               direction: 'desc',
-              per_page: 5,
+              per_page: 10,
             });
 
-            const closedIssues = closedResults.filter(i => !i.pull_request);
-            for (const issue of closedIssues) {
-              if (issue.body) {
-                const match = issue.body.match(/<!-- upstream-sha: ([a-f0-9]+) -->/);
-                if (match) {
-                  lastSyncedSha = match[1];
-                  core.info(`Last synced SHA: ${lastSyncedSha} (from issue #${issue.number})`);
-                  break;
+            const priorIssues = allIssueResults.filter(i => !i.pull_request);
+            for (const issue of priorIssues) {
+              const shaMatch = issue.body?.match(/<!-- upstream-sha: ([a-f0-9]+) -->/);
+              if (shaMatch) {
+                if (shaMatch[1] === latestSha) {
+                  // Already tracking this exact upstream HEAD (open or closed) — nothing new
+                  core.info(`Upstream ${upstreamBranch} HEAD already tracked in issue #${issue.number} (${issue.state}) — skipping`);
+                  return;
                 }
+                if (!lastSyncedSha) {
+                  lastSyncedSha = shaMatch[1];
+                  core.info(`Last synced SHA: ${lastSyncedSha} (from issue #${issue.number}, ${issue.state})`);
+                }
+              }
+              if (issue.state === 'open') {
+                openIssueFound = true;
               }
             }
 
-            // 4. Short-circuit if nothing changed
-            if (lastSyncedSha === latestSha) {
-              core.info('No new commits since last sync check');
+            // If an open issue already exists (with a different or no SHA marker), don't create another
+            if (openIssueFound) {
+              core.info(`Open sync issue already exists — skipping issue creation`);
               return;
             }
 
-            // 5. Get the commit diff
+            // 3. Get the commit diff
             let commits = [];
             let filesChanged = [];
             let totalCommits = 0;
@@ -148,7 +145,7 @@ jobs:
               return;
             }
 
-            // 6. Build the issue body
+            // 4. Build the issue body
             const date = new Date().toISOString().split('T')[0];
 
             // Sanitize commit messages — escape @ mentions to avoid pinging
@@ -197,7 +194,7 @@ jobs:
               '> Close this issue once changes have been reviewed and ported to the .NET project.',
             ].join('\n');
 
-            // 7. Ensure required labels exist (race-safe: ignore 422 on create)
+            // 5. Ensure required labels exist (race-safe: ignore 422 on create)
             const labelDefs = {
               'sync':          { color: 'F9D0C4', description: 'Upstream sync tracking' },
               'sync:dev':      { color: 'FEF2C0', description: 'Changes on upstream dev branch' },
@@ -236,7 +233,7 @@ jobs:
               }
             }
 
-            // 8. Create the sync issue
+            // 6. Create the sync issue
             const { data: newIssue } = await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
