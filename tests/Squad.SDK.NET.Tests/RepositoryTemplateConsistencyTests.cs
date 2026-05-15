@@ -102,15 +102,15 @@ public sealed class RepositoryTemplateConsistencyTests : IDisposable
     }
 
     [Fact]
-    public void ReleaseProcessSkills_IncludeV094ReleaseLessons()
+    public void ReleaseProcessSkills_DescribeChangesetDrivenPromotionFlow()
     {
         foreach (var relativePath in ReleaseProcessSkillFiles)
         {
             var content = File.ReadAllText(RepoPath(relativePath));
 
-            Assert.Contains("v0.9.4", content, StringComparison.Ordinal);
-            Assert.Contains("CHANGELOG", content, StringComparison.Ordinal);
-            Assert.Contains("GITHUB_TOKEN", content, StringComparison.Ordinal);
+            Assert.Contains("dev -> preview -> main", content, StringComparison.Ordinal);
+            Assert.Contains(".changeset", content, StringComparison.Ordinal);
+            Assert.Contains("v<Version>", content, StringComparison.Ordinal);
         }
     }
 
