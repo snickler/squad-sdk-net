@@ -14,6 +14,8 @@
     <RepositoryType>git</RepositoryType>
     <PackageTags>copilot;ai;agents;multi-agent;orchestration;squad;dotnet;sdk</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <!-- Allow pre-release dependencies (GitHub.Copilot.SDK beta) for stable package -->
+    <NoWarn>$(NoWarn);NU5104</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

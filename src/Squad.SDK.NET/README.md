@@ -381,10 +381,10 @@ dotnet test
 ## Requirements
 
 - **.NET 10** or later (AOT-compatible)
-- **GitHub.Copilot.SDK** v0.2.1 or later
-- **Microsoft.Extensions.AI.Abstractions** v10.4.1 or later
-- **Microsoft.Extensions.DependencyInjection.Abstractions** v10.0.5 or later
-- **Microsoft.Extensions.Logging.Abstractions** v10.0.5 or later
+- **GitHub.Copilot.SDK** v1.0.0-beta.4 or later
+- **Microsoft.Extensions.AI.Abstractions** v10.6.0 or later
+- **Microsoft.Extensions.DependencyInjection.Abstractions** v10.0.8 or later
+- **Microsoft.Extensions.Logging.Abstractions** v10.0.8 or later
 
 All dependencies are AOT-safe and trimming-compatible.
 
