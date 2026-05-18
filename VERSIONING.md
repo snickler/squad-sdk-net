@@ -11,10 +11,10 @@ dev -> preview -> main
 The canonical SDK version lives in `src/Squad.SDK.NET/Squad.SDK.NET.csproj`:
 
 ```xml
-<Version>0.9.5-preview.1</Version>
+<Version>0.1.0</Version>
 ```
 
-For example, if the current version is `0.9.5-preview.1`, that value is read by the release automation.
+For example, if the current version is `0.1.0`, that value is read by the release automation.
 
 Release automation reads the effective version from MSBuild, not from a manually pushed tag.
 

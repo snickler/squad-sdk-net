@@ -47,7 +47,7 @@ squad-sdk-net/
 │       ├── Tools/              # Built-in tool definitions
 │       └── Utils/              # String utilities
 ├── tests/
-│   └── Squad.SDK.NET.Tests/    # Unit tests (474+ tests)
+│   └── Squad.SDK.NET.Tests/    # Unit tests (761 tests)
 ├── docs/
 │   └── examples.md             # Comprehensive usage examples
 ├── .editorconfig               # Code style rules
@@ -109,7 +109,7 @@ For security vulnerabilities, see [SECURITY.md](SECURITY.md).
 ## Requirements
 
 - .NET 10 SDK (or later)
-- GitHub Copilot SDK 0.2.1 (stable)
+- GitHub Copilot SDK 0.3.0 (stable)
 
 ## License
 
