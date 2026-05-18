@@ -109,7 +109,7 @@ For security vulnerabilities, see [SECURITY.md](SECURITY.md).
 ## Requirements
 
 - .NET 10 SDK (or later)
-- GitHub Copilot SDK 0.3.0 (stable)
+- GitHub Copilot SDK 1.0.0-beta.4
 
 ## License
 
