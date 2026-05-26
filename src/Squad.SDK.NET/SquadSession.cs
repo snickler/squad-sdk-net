@@ -1,7 +1,8 @@
-using GitHub.Copilot.SDK;
+using GitHub.Copilot;
 using Microsoft.Extensions.Logging;
 using Squad.SDK.NET.Abstractions;
 using Squad.SDK.NET.Events;
+using System.Text.Json;
 
 namespace Squad.SDK.NET;
 
@@ -57,14 +58,14 @@ public sealed class SquadSession : ISquadSession
     /// <inheritdoc />
     public async Task<IReadOnlyList<SquadEvent>> GetMessagesAsync(CancellationToken cancellationToken = default)
     {
-        var events = await _session.GetMessagesAsync(cancellationToken);
+        var events = await _session.GetEventsAsync(cancellationToken);
         return events.Select(MapSessionEvent).ToList();
     }
 
     /// <inheritdoc />
     public IDisposable On(Action<SquadEvent> handler)
     {
-        return _session.On(evt => handler(MapSessionEvent(evt)));
+        return _session.On<SessionEvent>(evt => handler(MapSessionEvent(evt)));
     }
 
     /// <inheritdoc />
@@ -135,7 +136,7 @@ public sealed class SquadSession : ISquadSession
                         Model         = e.Data.Model ?? string.Empty,
                         InputTokens   = (int)(e.Data.InputTokens ?? 0),
                         OutputTokens  = (int)(e.Data.OutputTokens ?? 0),
-                        EstimatedCost = (decimal)(e.Data.Cost ?? 0)
+                        EstimatedCost = 0m
                     }
                     : null),
 
@@ -187,7 +188,7 @@ public sealed class SquadSession : ISquadSession
         return new ToolCallPayload
         {
             ToolName  = data.ToolName ?? string.Empty,
-            Arguments = data.Arguments as IReadOnlyDictionary<string, object?>,
+            Arguments = MapArguments(data.Arguments),
             Status    = ToolCallStatus.Running
         };
     }
@@ -205,4 +206,38 @@ public sealed class SquadSession : ISquadSession
             Status   = data.Error is null ? ToolCallStatus.Completed : ToolCallStatus.Error
         };
     }
+
+    private static IReadOnlyDictionary<string, object?>? MapArguments(JsonElement? arguments)
+    {
+        if (arguments is not { ValueKind: JsonValueKind.Object } json)
+        {
+            return null;
+        }
+
+        var result = new Dictionary<string, object?>();
+        foreach (var property in json.EnumerateObject())
+        {
+            result[property.Name] = MapJsonValue(property.Value);
+        }
+
+        return result;
+    }
+
+    private static object? MapJsonValue(JsonElement value) => value.ValueKind switch
+    {
+        JsonValueKind.String => value.GetString(),
+        JsonValueKind.Number => value.TryGetInt64(out var longValue)
+            ? longValue
+            : value.TryGetDouble(out var doubleValue)
+                ? doubleValue
+                : value.GetRawText(),
+        JsonValueKind.True => true,
+        JsonValueKind.False => false,
+        JsonValueKind.Null => null,
+        JsonValueKind.Object => value.EnumerateObject().ToDictionary(
+            property => property.Name,
+            property => MapJsonValue(property.Value)),
+        JsonValueKind.Array => value.EnumerateArray().Select(MapJsonValue).ToList(),
+        _ => value.GetRawText()
+    };
 }

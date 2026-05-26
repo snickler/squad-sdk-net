@@ -1,8 +1,7 @@
-using GitHub.Copilot.SDK;
+using GitHub.Copilot;
 using Microsoft.Extensions.Logging;
 using Squad.SDK.NET.Abstractions;
 using Squad.SDK.NET.Events;
-using SdkConnectionState = GitHub.Copilot.SDK.ConnectionState;
 
 namespace Squad.SDK.NET;
 
@@ -34,7 +33,9 @@ public sealed class SquadClient : ISquadClient
     {
         get
         {
-            var state = MapConnectionState(_copilotClient.State);
+            var state = _isStarted
+                ? Abstractions.ConnectionState.Connected
+                : Abstractions.ConnectionState.Disconnected;
             _logger.LogDebug("Client state: {State}", state);
             return state;
         }
@@ -145,11 +146,11 @@ public sealed class SquadClient : ISquadClient
     /// <inheritdoc />
     public IDisposable On(Action<SquadEvent> handler)
     {
-        return _copilotClient.On(evt =>
+        return _copilotClient.OnLifecycle<SessionLifecycleEvent>(evt =>
         {
             handler(new SquadEvent
             {
-                Type = MapLifecycleEventType(evt.Type),
+                Type = MapLifecycleEventType(evt),
                 SessionId = evt.SessionId,
                 Timestamp = DateTimeOffset.UtcNow
             });
@@ -163,20 +164,11 @@ public sealed class SquadClient : ISquadClient
         await _copilotClient.DisposeAsync();
     }
 
-    private static Abstractions.ConnectionState MapConnectionState(SdkConnectionState state) => state switch
+    private static SquadEventType MapLifecycleEventType(SessionLifecycleEvent evt) => evt switch
     {
-        SdkConnectionState.Disconnected => Abstractions.ConnectionState.Disconnected,
-        SdkConnectionState.Connecting   => Abstractions.ConnectionState.Connecting,
-        SdkConnectionState.Connected    => Abstractions.ConnectionState.Connected,
-        SdkConnectionState.Error        => Abstractions.ConnectionState.Error,
-        _                               => Abstractions.ConnectionState.Disconnected
-    };
-
-    private static SquadEventType MapLifecycleEventType(string? type) => type switch
-    {
-        SessionLifecycleEventTypes.Created => SquadEventType.SessionCreated,
-        SessionLifecycleEventTypes.Deleted => SquadEventType.SessionDestroyed,
-        _                                  => SquadEventType.SessionCreated
+        SessionCreatedEvent => SquadEventType.SessionCreated,
+        SessionDeletedEvent => SquadEventType.SessionDestroyed,
+        _                   => SquadEventType.SessionCreated
     };
 
     private static SessionConfig MapSessionConfig(SquadSessionConfig? config)
