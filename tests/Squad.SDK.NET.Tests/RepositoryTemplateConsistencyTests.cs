@@ -117,6 +117,16 @@ public sealed class RepositoryTemplateConsistencyTests : IDisposable
         }
     }
 
+    [Fact]
+    public void ContributingGuide_DocumentsTemplateE2EWorkflowAndCurrentCopilotCommand()
+    {
+        var content = File.ReadAllText(RepoPath("CONTRIBUTING.md"));
+
+        Assert.Contains("Testing Template Changes (End-to-End)", content, StringComparison.Ordinal);
+        Assert.Contains("copilot --agent squad --allow-all-tools -p", content, StringComparison.Ordinal);
+        Assert.Contains(".copilot/skills/e2e-template-testing/SKILL.md", content, StringComparison.Ordinal);
+    }
+
     private string RepoPath(params string[] segments)
         => Path.Combine(new[] { _repoRoot }.Concat(segments).ToArray());
 
