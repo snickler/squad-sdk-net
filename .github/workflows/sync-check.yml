@@ -176,62 +176,6 @@ jobs:
               return ['```', ...lines, '```'].join('\n');
             };
 
-            let deltaSection = '';
-            let comparisonBranch = null;
-            let comparisonHead = null;
-            if (upstreamBranch === 'dev') {
-              const candidates = ['preview', 'insider'];
-              for (const candidate of candidates) {
-                try {
-                  const { data: branch } = await github.rest.repos.getBranch({
-                    owner: upstreamOwner,
-                    repo: upstreamRepo,
-                    branch: candidate,
-                  });
-                  comparisonBranch = candidate;
-                  comparisonHead = branch.commit.sha;
-                  break;
-                } catch (err) {
-                  if (err.status !== 404) {
-                    core.warning(`Could not read upstream ${candidate} branch: ${err.message}`);
-                  }
-                }
-              }
-            }
-
-            if (comparisonBranch && comparisonHead) {
-              try {
-                const { data: branchComparison } = await github.rest.repos.compareCommits({
-                  owner: upstreamOwner,
-                  repo: upstreamRepo,
-                  base: comparisonHead,
-                  head: latestSha,
-                });
-                const deltaCommits = branchComparison.commits || [];
-                const deltaFiles = branchComparison.files || [];
-                deltaSection = [
-                  '---',
-                  '',
-                  `## 🔀 Upstream \`${upstreamBranch}\` ↔ \`${comparisonBranch}\` Delta`,
-                  '',
-                  `Changes in upstream \`${upstreamBranch}\` that are **not** in upstream \`${comparisonBranch}\`:`,
-                  '',
-                  '### Commits',
-                  '',
-                  toCommitList(deltaCommits, 25),
-                  '',
-                  '### File Diff',
-                  '',
-                  toFileDiffBlock(deltaFiles),
-                  '',
-                  `> 📌 **Context:** This delta shows what is in upstream \`${upstreamBranch}\` but not in \`${comparisonBranch}\`.`,
-                  '> Use it as a branch-boundary reference while porting.',
-                ].join('\n');
-              } catch (err) {
-                core.warning(`Could not compute ${upstreamBranch}↔${comparisonBranch} delta: ${err.message}`);
-              }
-            }
-
             const commitList = toCommitList(commits);
             const fileDiffBlock = toFileDiffBlock(filesChanged);
             const branchHeader = `## 📦 \`${upstreamBranch}\` Branch: Changes to Port`;
@@ -239,9 +183,6 @@ jobs:
               ? `> Changes since previously tracked SHA \`${lastSyncedSha.substring(0, 7)}\`.`
               : '> **Initial sync** — No previous baseline recorded. Showing recent commits for context.';
             const stateTrackedSha = lastSyncedSha ? lastSyncedSha.substring(0, 7) : 'none';
-            const comparisonStateRow = comparisonBranch && comparisonHead
-              ? `| ${comparisonBranch} | \`none\` | \`${comparisonHead.substring(0, 7)}\` | ⏸️ Informational boundary |`
-              : '';
 
             const title = `Sync: upstream ${upstreamBranch} changes — ${date}`;
             const body = [
@@ -272,14 +213,12 @@ jobs:
               '### File Diff',
               '',
               fileDiffBlock,
-              deltaSection,
               '',
               '## 📊 Sync State',
               '',
               '| Branch | Our Tracked SHA | Upstream HEAD | Status |',
               '|--------|----------------|---------------|--------|',
               `| ${upstreamBranch} | \`${stateTrackedSha}\` | \`${latestSha.substring(0, 7)}\` | 🔴 Changes pending |`,
-              comparisonStateRow,
               '',
               '## ✅ Completion Checklist',
               '',
