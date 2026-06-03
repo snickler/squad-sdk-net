@@ -7,15 +7,18 @@ public sealed class RepositoryTemplateConsistencyTests : IDisposable
     private static readonly string[] SkillFilesWithPortedFrontmatter =
     [
         ".copilot/skills/cli-wiring/SKILL.md",
+        ".copilot/skills/e2e-template-testing/SKILL.md",
         ".copilot/skills/model-selection/SKILL.md",
         ".copilot/skills/nap/SKILL.md",
         ".copilot/skills/personal-squad/SKILL.md",
         ".squad/templates/skills/cli-wiring/SKILL.md",
+        ".squad/templates/skills/e2e-template-testing/SKILL.md",
         ".squad/templates/skills/model-selection/SKILL.md",
         ".squad/templates/skills/nap/SKILL.md",
         ".squad/templates/skills/personal-squad/SKILL.md",
         "src/Squad.SDK.NET/Templates/skills/cli-wiring/SKILL.md",
         "src/Squad.SDK.NET/Templates/skills/cross-machine-coordination/SKILL.md",
+        "src/Squad.SDK.NET/Templates/skills/e2e-template-testing/SKILL.md",
         "src/Squad.SDK.NET/Templates/skills/model-selection/SKILL.md",
         "src/Squad.SDK.NET/Templates/skills/nap/SKILL.md",
         "src/Squad.SDK.NET/Templates/skills/personal-squad/SKILL.md",
