@@ -17,6 +17,11 @@ public sealed record ExportedSquad
     public required string ConfigJson { get; init; }
     /// <summary>Gets the list of exported agents.</summary>
     public IReadOnlyList<ExportedAgent> Agents { get; init; } = [];
+    /// <summary>
+    /// Gets exported top-level squad files (for example <c>team.md</c>, <c>decisions.md</c>, and <c>routing.md</c>).
+    /// Values may be empty strings when the source file existed but had no content.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> TopLevelFiles { get; init; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     /// <summary>Gets the timestamp when the squad was exported.</summary>
     public DateTimeOffset ExportedAt { get; init; } = DateTimeOffset.UtcNow;
 }
@@ -49,4 +54,6 @@ public sealed record ImportResult
     public IReadOnlyList<string> Warnings { get; init; } = [];
     /// <summary>Gets the file path from which the squad was imported.</summary>
     public string? ImportedPath { get; init; }
+    /// <summary>Gets the imported squad payload when deserialization succeeds.</summary>
+    public ExportedSquad? ImportedSquad { get; init; }
 }

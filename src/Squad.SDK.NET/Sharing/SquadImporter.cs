@@ -44,7 +44,8 @@ public sealed class SquadImporter
             {
                 Success = true,
                 Message = $"Successfully imported squad '{exported.Name}'",
-                ImportedPath = filePath
+                ImportedPath = filePath,
+                ImportedSquad = exported
             };
         }
         catch (JsonException ex)

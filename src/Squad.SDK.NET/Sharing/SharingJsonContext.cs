@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 using Squad.SDK.NET.Config;
 using Squad.SDK.NET.Coordinator;
@@ -8,6 +9,7 @@ namespace Squad.SDK.NET.Sharing;
 [JsonSerializable(typeof(ExportedSquad))]
 [JsonSerializable(typeof(ExportedAgent))]
 [JsonSerializable(typeof(ImportResult))]
+[JsonSerializable(typeof(Dictionary<string, string>))]
 [JsonSerializable(typeof(SquadConfig))]
 [JsonSerializable(typeof(TeamConfig))]
 [JsonSerializable(typeof(AgentConfig))]

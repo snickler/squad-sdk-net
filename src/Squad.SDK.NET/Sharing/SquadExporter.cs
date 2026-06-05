@@ -23,10 +23,19 @@ public sealed class SquadExporter
     /// <summary>Exports a squad configuration to an <see cref="ExportedSquad"/> instance.</summary>
     /// <param name="config">The squad configuration to export.</param>
     /// <param name="author">Optional author attribution.</param>
+    /// <param name="topLevelFiles">
+    /// Optional top-level squad files to preserve in the export payload
+    /// (for example <c>team.md</c>, <c>decisions.md</c>, and <c>routing.md</c>).
+    /// Null values are normalized to empty strings to preserve file existence.
+    /// </param>
     /// <returns>An <see cref="ExportedSquad"/> containing the serialized configuration and agent list.</returns>
-    public ExportedSquad Export(SquadConfig config, string? author = null)
+    public ExportedSquad Export(
+        SquadConfig config,
+        string? author = null,
+        IReadOnlyDictionary<string, string?>? topLevelFiles = null)
     {
         var configJson = JsonSerializer.Serialize(config, SharingJsonContext.Default.SquadConfig);
+        var normalizedTopLevelFiles = NormalizeTopLevelFiles(topLevelFiles);
 
         var agents = config.Agents.Select(a => new ExportedAgent
         {
@@ -46,7 +55,8 @@ public sealed class SquadExporter
             Description = config.Team.Description,
             Author = author,
             ConfigJson = configJson,
-            Agents = agents.AsReadOnly()
+            Agents = agents.AsReadOnly(),
+            TopLevelFiles = normalizedTopLevelFiles
         };
     }
 
@@ -54,12 +64,38 @@ public sealed class SquadExporter
     /// <param name="config">The squad configuration to export.</param>
     /// <param name="filePath">Destination file path.</param>
     /// <param name="author">Optional author attribution.</param>
+    /// <param name="topLevelFiles">
+    /// Optional top-level squad files to include in the export payload.
+    /// </param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    public async Task ExportToFileAsync(SquadConfig config, string filePath, string? author = null, CancellationToken cancellationToken = default)
+    public async Task ExportToFileAsync(
+        SquadConfig config,
+        string filePath,
+        string? author = null,
+        IReadOnlyDictionary<string, string?>? topLevelFiles = null,
+        CancellationToken cancellationToken = default)
     {
-        var exported = Export(config, author);
+        var exported = Export(config, author, topLevelFiles);
         var json = JsonSerializer.Serialize(exported, SharingJsonContext.Default.ExportedSquad);
         await File.WriteAllTextAsync(filePath, json, cancellationToken);
         _logger.LogInformation("Exported squad to {Path}", filePath);
+    }
+
+    private static IReadOnlyDictionary<string, string> NormalizeTopLevelFiles(
+        IReadOnlyDictionary<string, string?>? topLevelFiles)
+    {
+        if (topLevelFiles is null || topLevelFiles.Count == 0)
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        var normalized = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (key, value) in topLevelFiles)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                continue;
+
+            normalized[key] = value ?? string.Empty;
+        }
+
+        return normalized;
     }
 }

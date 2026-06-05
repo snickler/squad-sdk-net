@@ -80,6 +80,29 @@ External contributors do not have write access, so the review-to-merge flow has 
 - All bug fixes should include a regression test
 - Tests use xUnit — place them in the `tests/` directory
 
+## Testing Template Changes (End-to-End)
+
+Changes to Squad coordinator/charter templates should be validated with a real session flow in addition to unit tests.
+
+### Quick run
+
+```bash
+mkdir -p /tmp/squad-template-e2e && cd /tmp/squad-template-e2e
+git init
+echo "# Template E2E" > README.md
+git add -A && git commit -m "init"
+
+copilot --agent squad --allow-all-tools -p "Picard, decide on a testing framework and record the decision."
+```
+
+### Full workflow
+
+Use the full checklist and evidence workflow in:
+
+- `.copilot/skills/e2e-template-testing/SKILL.md`
+- `.squad/templates/skills/e2e-template-testing/SKILL.md`
+- `src/Squad.SDK.NET/Templates/skills/e2e-template-testing/SKILL.md`
+
 ## Versioning
 
 This project follows [Semantic Versioning 2.0](https://semver.org/) with changeset-driven release prep on `dev`. See [VERSIONING.md](VERSIONING.md) for the full branching, versioning, and release policy.

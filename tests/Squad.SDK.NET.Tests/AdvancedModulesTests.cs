@@ -915,6 +915,26 @@ public sealed class SharingTests
     }
 
     [Fact]
+    public void Export_WithTopLevelFiles_PreservesContentIncludingEmptyFiles()
+    {
+        var exporter = new SquadExporter(NullLogger<SquadExporter>.Instance);
+        var config = CreateTestConfig();
+        var topLevelFiles = new Dictionary<string, string?>
+        {
+            ["team.md"] = "# Team",
+            ["decisions.md"] = string.Empty,
+            ["routing.md"] = "routing rules"
+        };
+
+        var result = exporter.Export(config, topLevelFiles: topLevelFiles);
+
+        Assert.Equal(3, result.TopLevelFiles.Count);
+        Assert.Equal("# Team", result.TopLevelFiles["team.md"]);
+        Assert.Equal(string.Empty, result.TopLevelFiles["decisions.md"]);
+        Assert.Equal("routing rules", result.TopLevelFiles["routing.md"]);
+    }
+
+    [Fact]
     public void DeserializeConfig_RoundTrips()
     {
         var exporter = new SquadExporter(NullLogger<SquadExporter>.Instance);
@@ -988,6 +1008,40 @@ public sealed class SharingTests
         var result = importer.DeserializeConfig(exported);
 
         Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task ImportFromFileAsync_ValidExport_ReturnsImportedSquadWithTopLevelFiles()
+    {
+        var exporter = new SquadExporter(NullLogger<SquadExporter>.Instance);
+        var importer = new SquadImporter(NullLogger<SquadImporter>.Instance);
+        var config = CreateTestConfig();
+        var topLevelFiles = new Dictionary<string, string?>
+        {
+            ["team.md"] = "# Team",
+            ["decisions.md"] = string.Empty,
+            ["routing.md"] = "routing rules"
+        };
+
+        var exported = exporter.Export(config, topLevelFiles: topLevelFiles);
+        var json = JsonSerializer.Serialize(exported, SharingJsonContext.Default.ExportedSquad);
+        var filePath = Path.Combine(Path.GetTempPath(), $"squad-import-{Guid.NewGuid():N}.json");
+        await File.WriteAllTextAsync(filePath, json);
+
+        try
+        {
+            var result = await importer.ImportFromFileAsync(filePath);
+
+            Assert.True(result.Success);
+            Assert.NotNull(result.ImportedSquad);
+            Assert.Equal(string.Empty, result.ImportedSquad.TopLevelFiles["decisions.md"]);
+            Assert.Equal("routing rules", result.ImportedSquad.TopLevelFiles["routing.md"]);
+        }
+        finally
+        {
+            if (File.Exists(filePath))
+                File.Delete(filePath);
+        }
     }
 }
 

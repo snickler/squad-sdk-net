@@ -145,54 +145,88 @@ jobs:
               return;
             }
 
-            // 4. Build the issue body
+            // 4. Build the issue body (issue #29 style)
             const date = new Date().toISOString().split('T')[0];
 
             // Sanitize commit messages — escape @ mentions to avoid pinging
             const sanitize = (msg) => msg.replace(/@/g, '`@`');
 
-            const commitList = commits.slice(0, 30).map(c => {
-              const msg = sanitize(c.commit.message.split('\n')[0]);
-              const sha = c.sha.substring(0, 7);
-              return `- [\`${sha}\`](https://github.com/${upstreamOwner}/${upstreamRepo}/commit/${c.sha}) ${msg}`;
-            }).join('\n');
+            const toCommitList = (items, max = 30) => {
+              const visible = items.slice(0, max).map(c => {
+                const msg = sanitize(c.commit.message.split('\n')[0]);
+                const sha = c.sha.substring(0, 7);
+                return `- [\`${sha}\`](https://github.com/${upstreamOwner}/${upstreamRepo}/commit/${c.sha}) ${msg}`;
+              });
+              if (items.length > max) {
+                visible.push(`- _... and ${items.length - max} more commits_`);
+              }
+              return visible.join('\n');
+            };
 
-            let filesSummary = '';
-            if (filesChanged.length > 0) {
-              const list = filesChanged.slice(0, 50).map(f =>
-                `- \`${f.filename}\` (+${f.additions}/-${f.deletions})`
-              ).join('\n');
-              const overflow = filesChanged.length > 50
-                ? `\n- _... and ${filesChanged.length - 50} more files_`
-                : '';
-              filesSummary = `\n### Files Changed (${filesChanged.length})\n\n${list}${overflow}`;
-            }
+            const toFileDiffBlock = (files, max = 50) => {
+              if (files.length === 0) {
+                return '_File-level diff unavailable for this sync window._';
+              }
+              const lines = files.slice(0, max).map(f =>
+                `${f.filename} | +${f.additions}/-${f.deletions}`
+              );
+              if (files.length > max) {
+                lines.push(`... and ${files.length - max} more files`);
+              }
+              return ['```', ...lines, '```'].join('\n');
+            };
 
-            const title = `Sync: upstream ${upstreamBranch} changes detected — ${date}`;
+            const commitList = toCommitList(commits);
+            const fileDiffBlock = toFileDiffBlock(filesChanged);
+            const branchHeader = `## 📦 \`${upstreamBranch}\` Branch: Changes to Port`;
+            const baselineNote = lastSyncedSha
+              ? `> Changes since previously tracked SHA \`${lastSyncedSha.substring(0, 7)}\`.`
+              : '> **Initial sync** — No previous baseline recorded. Showing recent commits for context.';
+            const stateTrackedSha = lastSyncedSha ? lastSyncedSha.substring(0, 7) : 'none';
+
+            const title = `Sync: upstream ${upstreamBranch} changes — ${date}`;
             const body = [
               `<!-- upstream-sha: ${latestSha} -->`,
               '',
-              `New changes detected on [\`${upstreamBranch}\`](https://github.com/${upstreamOwner}/${upstreamRepo}/tree/${upstreamBranch}) in [${upstreamOwner}/${upstreamRepo}](https://github.com/${upstreamOwner}/${upstreamRepo}).`,
+              `📦 **Phase 1: Port upstream \`${upstreamBranch}\` changes**`,
               '',
-              `### Upstream Commits (${totalCommits})`,
+              `New changes detected in [${upstreamOwner}/${upstreamRepo}](https://github.com/${upstreamOwner}/${upstreamRepo}) \`${upstreamBranch}\` branch that need to be ported to our .NET implementation.`,
+              '',
+              '> **Instructions:**',
+              `> 1. Port the \`${upstreamBranch}\` branch commits listed below to our \`${upstreamBranch}\` branch`,
+              '> 2. Reference upstream commit SHAs in your commit messages when practical (e.g., "Port feature X (upstream/dev@a1b2c3d)")',
+              `> 3. Update \`${upstreamBranch}.lastPortedSha\` in \`.sync/upstream-state.json\` to the target SHA below`,
+              `> 4. Verify builds pass on \`${upstreamBranch}\``,
+              '> 5. Close this issue after porting is complete',
+              '',
+              branchHeader,
+              '',
+              baselineNote,
+              `> After porting, set \`lastPortedSha\` in \`.sync/upstream-state.json\` to \`${latestSha}\`.`,
+              '',
+              `Upstream \`${upstreamBranch}\` HEAD: \`${latestSha.substring(0, 7)}\` — **${totalCommits}** new commits.`,
+              '',
+              '### Commits',
               '',
               commitList,
-              totalCommits > 30 ? `\n_... and ${totalCommits - 30} more commits_` : '',
-              filesSummary,
               '',
-              '### Sync Details',
+              '### File Diff',
               '',
-              '| Field | Value |',
-              '|-------|-------|',
-              `| Upstream repo | \`${upstreamOwner}/${upstreamRepo}\` |`,
-              `| Branch | \`${upstreamBranch}\` |`,
-              `| Latest SHA | \`${latestSha.substring(0, 7)}\` |`,
-              lastSyncedSha ? `| Previous SHA | \`${lastSyncedSha.substring(0, 7)}\` |` : '| Previous SHA | _first sync check_ |',
-              `| Detected | ${date} |`,
+              fileDiffBlock,
               '',
-              '---',
-              '> Close this issue once changes have been reviewed and ported to the .NET project.',
-            ].join('\n');
+              '## 📊 Sync State',
+              '',
+              '| Branch | Our Tracked SHA | Upstream HEAD | Status |',
+              '|--------|----------------|---------------|--------|',
+              `| ${upstreamBranch} | \`${stateTrackedSha}\` | \`${latestSha.substring(0, 7)}\` | 🔴 Changes pending |`,
+              '',
+              '## ✅ Completion Checklist',
+              '',
+              `- [ ] Port upstream \`${upstreamBranch}\` commits`,
+              `- [ ] Update \`.sync/upstream-state.json\`: set \`${upstreamBranch}.lastPortedSha\` → \`${latestSha}\``,
+              `- [ ] Verify build passes on \`${upstreamBranch}\` branch`,
+              '- [ ] Close this issue',
+            ].filter(Boolean).join('\n');
 
             // 5. Ensure required labels exist (race-safe: ignore 422 on create)
             const labelDefs = {
