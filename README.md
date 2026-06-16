@@ -24,7 +24,7 @@ dotnet test Squad.SDK.NET.slnx
 squad-sdk-net/
 ├── .changeset/                # Pending release notes and version bump metadata
 ├── src/
-│   └── Squad.SDK.NET/          # Core SDK library (v0.1.0)
+│   └── Squad.SDK.NET/          # Core SDK library
 │       ├── Abstractions/       # Interfaces and contracts
 │       ├── Agents/             # Agent session management
 │       ├── Builder/            # Fluent configuration builders
@@ -42,12 +42,12 @@ squad-sdk-net/
 │       ├── Runtime/            # Cost tracking, session pool
 │       ├── Sharing/            # Import/export
 │       ├── Skills/             # Skill loader & registry
-│       ├── State/              # State management
-│       ├── Storage/            # Storage providers
+│       ├── State/               # State management
+│       ├── Storage/             # Storage providers
 │       ├── Tools/              # Built-in tool definitions
 │       └── Utils/              # String utilities
 ├── tests/
-│   └── Squad.SDK.NET.Tests/    # Unit tests (761 tests)
+│   └── Squad.SDK.NET.Tests/    # Unit tests
 ├── docs/
 │   └── examples.md             # Comprehensive usage examples
 ├── .editorconfig               # Code style rules
@@ -55,7 +55,7 @@ squad-sdk-net/
 │   ├── ISSUE_TEMPLATE/         # Bug report & feature request templates
 │   ├── PULL_REQUEST_TEMPLATE.md
 │   ├── workflows/
-│   │   ├── ci.yml              # CI pipeline with multi-OS matrix (Ubuntu + Windows), code coverage, pack validation, and changeset gate for SDK changes
+│   │   ├── ci.yml              # CI pipeline
 │   │   ├── codeql.yml          # CodeQL security scanning
 │   │   ├── dependency-review.yml # Dependency vulnerability review
 │   │   ├── preview.yml         # Preview branch validation
@@ -67,17 +67,17 @@ squad-sdk-net/
 ├── SECURITY.md                 # Vulnerability reporting policy
 ├── VERSIONING.md               # Versioning scheme and release process
 ├── Squad.SDK.NET.slnx          # Solution file
-├── Directory.Build.props       # Shared build properties (SourceLink, warnings-as-errors)
+├── Directory.Build.props       # Shared build properties
 ├── Directory.Packages.props    # Central package management
 └── global.json                 # SDK version pinning
 ```
 
 ## Documentation
 
-- **[Usage Examples](docs/examples.md)** — 16-section cookbook with copy-paste-ready C# examples covering the Builder API, routing, events, hooks, cost tracking, sessions, skills, casting, import/export, and more.
-- **API Documentation** — All public types, methods, and properties include comprehensive XML doc comments for IntelliSense and generated API reference.
-- **[Package README](src/Squad.SDK.NET/README.md)** — Detailed feature overview, architecture diagram, and quick start guide.
-- **[Changelog](CHANGELOG.md)** — Release notes following [Keep a Changelog](https://keepachangelog.com/) format.
+- **[Usage Examples](docs/examples.md)** — copy-paste-ready C# examples covering the Builder API, routing, events, hooks, cost tracking, sessions, skills, casting, import/export, and more.
+- **API Documentation** — public types, methods, and properties include XML doc comments for IntelliSense and generated API reference.
+- **[Package README](src/Squad.SDK.NET/README.md)** — feature overview, architecture diagram, and quick start guide.
+- **[Changelog](CHANGELOG.md)** — release notes following [Keep a Changelog](https://keepachangelog.com/) format.
 
 ## Build & Packaging
 
@@ -85,7 +85,7 @@ squad-sdk-net/
 - **Deterministic builds** with `ContinuousIntegrationBuild` in CI
 - **Symbol packages** (`.snupkg`) for source-level debugging
 - **TreatWarningsAsErrors** — zero tolerance for compiler warnings
-- **CI matrix** — builds and tests on both Ubuntu and Windows for `dev` work and release candidates
+- **CI matrix** — builds and tests on Ubuntu and Windows for `dev`, `preview`, and `main`
 - **Changeset-driven release prep** — PRs targeting `dev` carry `.changeset` entries that drive version bumps and release notes
 - **Promotion flow** — `dev` accumulates changesets, `preview` applies them into the SDK version + changelog, and `main` creates the tag/release automatically
 - **Build provenance** — attestation via `actions/attest-build-provenance` for supply-chain security
@@ -109,7 +109,7 @@ For security vulnerabilities, see [SECURITY.md](SECURITY.md).
 ## Requirements
 
 - .NET 10 SDK (or later)
-- GitHub Copilot SDK 1.0.0-beta.4
+- GitHub Copilot SDK 1.0.0
 
 ## License
 

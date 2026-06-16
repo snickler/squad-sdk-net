@@ -19,10 +19,5 @@ jobs:
 
       - name: Build and test
         run: |
-          # TODO: Add your dotnet build/test commands here
-          # Go:            go test ./...
-          # Python:        pip install -r requirements.txt && pytest
-          # .NET:          dotnet test
-          # Java (Maven):  mvn test
-          # Java (Gradle): ./gradlew test
-          echo "No build commands configured — update squad-ci.yml"
+          dotnet build Squad.SDK.NET.slnx -c Release
+          dotnet test Squad.SDK.NET.slnx -c Release --no-build

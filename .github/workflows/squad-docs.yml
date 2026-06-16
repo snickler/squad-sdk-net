@@ -22,6 +22,4 @@ jobs:
 
       - name: Build docs
         run: |
-          # TODO: Add your documentation build commands here
-          # This workflow is optional — remove or customize it for your project
-          echo "No docs build commands configured — update or remove squad-docs.yml"
+          echo "Docs are markdown-only; no build step required"

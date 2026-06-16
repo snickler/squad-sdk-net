@@ -1,6 +1,6 @@
 # samples
 
-Learn the Squad SDK (.NET) by example. Each sample is a complete, working console application demonstrating core patterns: agent casting, session management, streaming responses, governance, and skill discovery.
+Learn the Squad SDK (.NET) by example. Each sample is a complete console application demonstrating core patterns: agent casting, session management, streaming responses, governance, and skill discovery.
 
 ## Prerequisites
 
@@ -28,6 +28,6 @@ The `knock-knock` sample requires `GITHUB_TOKEN` for live LLM mode; without it a
 ## Recommended learning path
 
 1. `hello-squad` — Understand casting and agent onboarding
-2. `knock-knock` — See streaming and multi-session patterns  
+2. `knock-knock` — See streaming and multi-session patterns
 3. `hook-governance` — Implement security and governance patterns
 4. `skill-discovery` — Explore team knowledge sharing

@@ -1,5 +1,5 @@
 name: Squad Preview Validation
-# dotnet project — configure build, test, and validation commands below
+# dotnet project — configure build/test commands below
 
 on:
   push:
@@ -16,15 +16,9 @@ jobs:
 
       - name: Build and test
         run: |
-          # TODO: Add your dotnet build/test commands here
-          # Go:            go test ./...
-          # Python:        pip install -r requirements.txt && pytest
-          # .NET:          dotnet test
-          # Java (Maven):  mvn test
-          # Java (Gradle): ./gradlew test
-          echo "No build commands configured — update squad-preview.yml"
+          dotnet build Squad.SDK.NET.slnx -c Release
+          dotnet test Squad.SDK.NET.slnx -c Release --no-build
 
       - name: Validate
         run: |
-          # TODO: Add pre-release validation commands here
-          echo "No validation commands configured — update squad-preview.yml"
+          dotnet test tests/Squad.SDK.NET.Tests/Squad.SDK.NET.Tests.csproj -c Release --no-build

@@ -2,7 +2,7 @@
 
 > **Difficulty**: Beginner
 
-Two Copilot sessions trade knock-knock jokes, streaming token-by-token. Requires `GITHUB_TOKEN`; falls back to built-in demo mode without it.
+Two Copilot sessions trade knock-knock jokes, streaming token-by-token. Requires `GITHUB_TOKEN` for live mode; falls back to built-in demo mode without it.
 
 ## Prerequisites
 

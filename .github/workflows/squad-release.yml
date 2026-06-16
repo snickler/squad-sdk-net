@@ -18,17 +18,11 @@ jobs:
 
       - name: Build and test
         run: |
-          # TODO: Add your dotnet build/test commands here
-          # Go:            go test ./...
-          # Python:        pip install -r requirements.txt && pytest
-          # .NET:          dotnet test
-          # Java (Maven):  mvn test
-          # Java (Gradle): ./gradlew test
-          echo "No build commands configured — update squad-release.yml"
+          dotnet build Squad.SDK.NET.slnx -c Release
+          dotnet test Squad.SDK.NET.slnx -c Release --no-build
 
       - name: Create release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # TODO: Add your release commands here (e.g., git tag, gh release create)
-          echo "No release commands configured — update squad-release.yml"
+          dotnet pack src/Squad.SDK.NET/Squad.SDK.NET.csproj -c Release
