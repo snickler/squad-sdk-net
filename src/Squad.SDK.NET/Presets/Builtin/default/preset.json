@@ -1,34 +1,32 @@
 {
   "name": "default",
   "version": "1.0.0",
-  "description": "Starter squad — a well-rounded team for any software project",
-  "author": "Squad Contributors",
-  "tags": ["starter", "general", "software"],
+  "description": "Default Squad preset",
   "agents": [
     {
       "name": "lead",
-      "role": "lead",
-      "description": "Technical lead — owns architecture decisions and coordinates the team"
-    },
-    {
-      "name": "reviewer",
-      "role": "reviewer",
-      "description": "Code reviewer — catches bugs, enforces standards, and improves quality"
+      "role": "Lead .NET Architect",
+      "description": "Architecture, routing, and decisions"
     },
     {
       "name": "devrel",
-      "role": "devrel",
-      "description": "Developer relations — writes docs, READMEs, and developer-facing content"
-    },
-    {
-      "name": "security",
-      "role": "security",
-      "description": "Security engineer — reviews for vulnerabilities and enforces security practices"
+      "role": "Director of Developer Relations",
+      "description": "Docs, samples, and external guidance"
     },
     {
       "name": "docs",
-      "role": "docs",
-      "description": "Documentation specialist — maintains technical docs and API references"
+      "role": "Documentation Specialist",
+      "description": "Documentation, examples, and guides"
+    },
+    {
+      "name": "reviewer",
+      "role": "Code Reviewer",
+      "description": "Quality, correctness, and review gates"
+    },
+    {
+      "name": "security",
+      "role": "Security Specialist",
+      "description": "Security, policy, and secret handling"
     }
   ]
 }
